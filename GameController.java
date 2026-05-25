@@ -45,6 +45,12 @@ public class GameController {
     private boolean placingRoad;
     private Vertex roadFirstClick;
 
+    // true while player is clicking a settlement to upgrade
+    private boolean buildingCity;
+
+    // true while player must click a tile to place robber
+    private boolean movingRobber;
+
     // shows roll result / errors etc
     private JLabel statusLabel;
 
@@ -72,6 +78,8 @@ public class GameController {
         setupPlacingRoad = false;
         placingRoad = false;
         roadFirstClick = null;
+        buildingCity = false;
+        movingRobber = false;
         view = new GameView(board, players);
     }
 
@@ -180,8 +188,21 @@ public class GameController {
             }
         });
 
+        JButton buildCityButton = new JButton("Build City");
+        buildCityButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                if (hasRolled && !gameOver) {
+                    buildingCity = true;
+                    updateStatus("Click a settlement to upgrade.");
+                } else {
+                    updateStatus("Roll dice first.");
+                }
+            }
+        });
+
         bottom.add(rollButton);
         bottom.add(buildRoadButton);
+        bottom.add(buildCityButton);
         bottom.add(endTurnButton);
         bottom.add(statusLabel);
         return bottom;
@@ -190,18 +211,23 @@ public class GameController {
     // roll dice, give resources, let them build
     public void takeTurn() {
         int roll = rollDice();
-        distributeResources(roll);
         hasRolled = true;
         rollButton.setEnabled(false);
         endTurnButton.setEnabled(true);
 
-        Player current = players.get(currentPlayerIndex);
-        String rollMsg = current.getName() + " rolled " + roll + ". Click a vertex to build.";
         if (roll == 7) {
-            // 7 = no resources in catan
-            rollMsg = current.getName() + " rolled 7, no resources. Click to build.";
+            for (Player p : players) {
+                int total = p.getWood() + p.getBrick() + p.getWool() + p.getWheat() + p.getOre();
+                if (total > 7) {
+                    showDiscardDialog(p, total / 2);
+                }
+            }
+            movingRobber = true;
+            updateStatus("Click a tile to move the robber.");
+        } else {
+            distributeResources(roll);
+            updateStatus(players.get(currentPlayerIndex).getName() + " rolled " + roll + ". Click a vertex to build.");
         }
-        updateStatus(rollMsg);
         view.updateSidebar();
         view.repaint();
     }
@@ -220,6 +246,55 @@ public class GameController {
 
     // find closest vertex to click, try to build there
     private void handleBoardClick(int mouseX, int mouseY) {
+        if (movingRobber) {
+            Tile closest = null;
+            int minDist = Integer.MAX_VALUE;
+            for (Tile t : board.getTiles()) {
+                int[] xp = t.getXPoints();
+                int[] yp = t.getYPoints();
+                int cx = 0, cy = 0;
+                for (int i = 0; i < 6; i++) { cx += xp[i]; cy += yp[i]; }
+                cx /= 6; cy /= 6;
+                int dx = cx - mouseX;
+                int dy = cy - mouseY;
+                int dist = dx * dx + dy * dy;
+                if (dist < minDist) { minDist = dist; closest = t; }
+            }
+            for (Tile t : board.getTiles()) {
+                if (t.hasRobber()) t.setHasRobber(false);
+            }
+            closest.setHasRobber(true);
+            Player current = players.get(currentPlayerIndex);
+            Player victim = null;
+            Vertex[] tileVerts = closest.getVertices();
+            outer:
+            for (Player p : players) {
+                if (p == current) continue;
+                for (Building b : p.getSettlements()) {
+                    for (Vertex tv : tileVerts) {
+                        if (tv == b.getLocation()) { victim = p; break outer; }
+                    }
+                }
+            }
+            if (victim != null) {
+                String[] types = {ResourceType.WOOD, ResourceType.BRICK,
+                                  ResourceType.WOOL, ResourceType.WHEAT, ResourceType.ORE};
+                for (int attempt = 0; attempt < 10; attempt++) {
+                    String type = types[(int)(Math.random() * 5)];
+                    if (getCount(victim, type) > 0) {
+                        victim.removeResource(type);
+                        current.addResource(type);
+                        break;
+                    }
+                }
+            }
+            movingRobber = false;
+            view.updateSidebar();
+            view.repaint();
+            updateStatus("Robber moved.");
+            return;
+        }
+
         if (inSetupPhase) {
             if (!setupPlacingRoad) {
                 handleSetupSettlement(mouseX, mouseY);
@@ -261,6 +336,36 @@ public class GameController {
                 placeRoad(players.get(currentPlayerIndex), roadFirstClick, nearest);
                 placingRoad = false;
                 roadFirstClick = null;
+            }
+            return;
+        }
+
+        if (buildingCity) {
+            Vertex nearest = null;
+            int minDist = Integer.MAX_VALUE;
+            for (Vertex v : board.getVertices()) {
+                int dx = v.getX() - mouseX;
+                int dy = v.getY() - mouseY;
+                int dist = dx * dx + dy * dy;
+                if (dist < minDist) { minDist = dist; nearest = v; }
+            }
+            buildingCity = false;
+            if (nearest == null || minDist > 400) return;
+            Player current = players.get(currentPlayerIndex);
+            if (nearest.isEmpty()) {
+                updateStatus("No building there.");
+            } else if (!(nearest.getBuilding() instanceof Settlement)) {
+                updateStatus("Already a city.");
+            } else if (nearest.getBuilding().getOwner() != current) {
+                updateStatus("Not your settlement.");
+            } else if (!current.canAfford(0, 0, 0, 2, 3)) {
+                updateStatus("Need 2 wheat and 3 ore.");
+            } else {
+                current.deductResources(0, 0, 0, 2, 3);
+                ((Settlement) nearest.getBuilding()).upgrade();
+                updateStatus("City built.");
+                view.updateSidebar();
+                view.repaint();
             }
             return;
         }
@@ -396,6 +501,50 @@ public class GameController {
             }
         }
         return true;
+    }
+
+    // show modal dialog forcing player p to discard n cards
+    private void showDiscardDialog(final Player p, final int n) {
+        JDialog dialog = new JDialog(frame, p.getName() + " must discard " + n + " cards", true);
+        dialog.setLayout(new FlowLayout());
+
+        final String[] types  = {ResourceType.WOOD, ResourceType.BRICK,
+                                  ResourceType.WOOL, ResourceType.WHEAT, ResourceType.ORE};
+        final String[] labels = {"Wood", "Brick", "Wool", "Wheat", "Ore"};
+        final int[] discarded = {0};
+        final JButton[] buttons = new JButton[5];
+
+        for (int i = 0; i < 5; i++) {
+            if (getCount(p, types[i]) > 0) {
+                final int idx = i;
+                buttons[i] = new JButton(labels[i] + " (" + getCount(p, types[i]) + ")");
+                buttons[i].addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        p.removeResource(types[idx]);
+                        discarded[0]++;
+                        int remaining = getCount(p, types[idx]);
+                        buttons[idx].setText(labels[idx] + " (" + remaining + ")");
+                        if (remaining == 0) buttons[idx].setEnabled(false);
+                        if (discarded[0] >= n) dialog.dispose();
+                    }
+                });
+                dialog.add(buttons[i]);
+            }
+        }
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(frame);
+        dialog.setVisible(true);
+    }
+
+    // count of a named resource for player p
+    private int getCount(Player p, String type) {
+        if (type.equals(ResourceType.WOOD))  return p.getWood();
+        if (type.equals(ResourceType.BRICK)) return p.getBrick();
+        if (type.equals(ResourceType.WOOL))  return p.getWool();
+        if (type.equals(ResourceType.WHEAT)) return p.getWheat();
+        if (type.equals(ResourceType.ORE))   return p.getOre();
+        return 0;
     }
 
     // 2 dice, return sum

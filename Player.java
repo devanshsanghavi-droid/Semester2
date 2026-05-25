@@ -51,6 +51,15 @@ public class Player {
         return true;
     }
 
+    // -1 of given resource, floor at 0
+    public void removeResource(String type) {
+        if (type.equals(ResourceType.WOOD))  { if (wood  > 0) wood--;  }
+        else if (type.equals(ResourceType.BRICK)) { if (brick > 0) brick--; }
+        else if (type.equals(ResourceType.WOOL))  { if (wool  > 0) wool--;  }
+        else if (type.equals(ResourceType.WHEAT)) { if (wheat > 0) wheat--; }
+        else if (type.equals(ResourceType.ORE))   { if (ore   > 0) ore--;   }
+    }
+
     // +1 of given resource
     public void addResource(String type) {
         if (type.equals(ResourceType.WOOD)) {
