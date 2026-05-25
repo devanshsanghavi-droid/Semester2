@@ -9,9 +9,13 @@ public class GameBoard {
     // all unique corners (shared btw neighbors)
     private ArrayList<Vertex> vertices;
 
+    // all placed roads
+    private ArrayList<Road> roads;
+
     public GameBoard() {
         tiles = new ArrayList<Tile>();
         vertices = new ArrayList<Vertex>();
+        roads = new ArrayList<Road>();
         initBoard();
     }
 
@@ -92,19 +96,21 @@ public class GameBoard {
             if (resources[i].equals("DESERT")) {
                 tile.setHasRobber(true);
             }
-        }
+        }   
     }
 
-    // find existing corner near x,y or make a new one
+    // find exist corner near x,y or make a new one
     // tolerance 1px just in case
     private Vertex findOrCreateVertex(int x, int y) {
         for (Vertex v : vertices) {
             if (Math.abs(v.getX() - x) <= 1 && Math.abs(v.getY() - y) <= 1) {
                 return v;
+                
             }
         }
-        Vertex newV = new Vertex(x, y);
-        vertices.add(newV);
+        Vertex newV = new Vertex(x, y); // crazy thing right here, if there is no existing vertex, we create one.
+        vertices.add(newV); //
+
         return newV;
     }
 
@@ -121,4 +127,5 @@ public class GameBoard {
 
     public ArrayList<Tile> getTiles() { return tiles; }
     public ArrayList<Vertex> getVertices() { return vertices; }
+    public ArrayList<Road> getRoads() { return roads; }
 }

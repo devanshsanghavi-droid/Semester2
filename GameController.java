@@ -40,7 +40,10 @@ public class GameController {
     // buttons
     private JButton rollButton;
     private JButton endTurnButton;
-    private JButton skipRoadButton;
+
+    // true while player is clicking road endpoints
+    private boolean placingRoad;
+    private Vertex roadFirstClick;
 
     // shows roll result / errors etc
     private JLabel statusLabel;
@@ -67,6 +70,8 @@ public class GameController {
         inSetupPhase = false;
         setupTurnIndex = 0;
         setupPlacingRoad = false;
+        placingRoad = false;
+        roadFirstClick = null;
         view = new GameView(board, players);
     }
 
@@ -139,10 +144,9 @@ public class GameController {
         bottom.setBackground(new Color(40, 40, 60));
 
         rollButton = new JButton("Roll Dice");
+        JButton buildRoadButton = new JButton("Build Road");
         endTurnButton = new JButton("End Turn");
         endTurnButton.setEnabled(false);
-        skipRoadButton = new JButton("Skip Road");
-        skipRoadButton.setVisible(false);
 
         statusLabel = new JLabel("Player 1's turn");
         statusLabel.setForeground(Color.WHITE);
@@ -165,17 +169,20 @@ public class GameController {
             }
         });
 
-        skipRoadButton.addActionListener(new ActionListener() {
+        buildRoadButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                if (inSetupPhase && setupPlacingRoad) {
-                    advanceSetupAfterRoad();
+                if (hasRolled && !gameOver) {
+                    placingRoad = true;
+                    updateStatus("Click first vertex of road.");
+                } else {
+                    updateStatus("Roll dice first.");
                 }
             }
         });
 
         bottom.add(rollButton);
+        bottom.add(buildRoadButton);
         bottom.add(endTurnButton);
-        bottom.add(skipRoadButton);
         bottom.add(statusLabel);
         return bottom;
     }
@@ -216,8 +223,45 @@ public class GameController {
         if (inSetupPhase) {
             if (!setupPlacingRoad) {
                 handleSetupSettlement(mouseX, mouseY);
+            } else {
+                Vertex nearest = null;
+                int minDist = Integer.MAX_VALUE;
+                for (Vertex v : board.getVertices()) {
+                    int dx = v.getX() - mouseX;
+                    int dy = v.getY() - mouseY;
+                    int dist = dx * dx + dy * dy;
+                    if (dist < minDist) { minDist = dist; nearest = v; }
+                }
+                if (nearest == null || minDist > 400) return;
+                if (roadFirstClick == null) {
+                    roadFirstClick = nearest;
+                    updateStatus("Click second vertex of road.");
+                } else {
+                    placeSetupRoad(players.get(currentPlayerIndex), roadFirstClick, nearest);
+                    roadFirstClick = null;
+                }
             }
-            // road placement handled by Feature 2; skip road button used until then
+            return;
+        }
+
+        if (placingRoad) {
+            Vertex nearest = null;
+            int minDist = Integer.MAX_VALUE;
+            for (Vertex v : board.getVertices()) {
+                int dx = v.getX() - mouseX;
+                int dy = v.getY() - mouseY;
+                int dist = dx * dx + dy * dy;
+                if (dist < minDist) { minDist = dist; nearest = v; }
+            }
+            if (nearest == null || minDist > 400) return;
+            if (roadFirstClick == null) {
+                roadFirstClick = nearest;
+                updateStatus("Click second vertex of road.");
+            } else {
+                placeRoad(players.get(currentPlayerIndex), roadFirstClick, nearest);
+                placingRoad = false;
+                roadFirstClick = null;
+            }
             return;
         }
 
@@ -271,11 +315,69 @@ public class GameController {
         if (!isValidPlacement(v)) return false;
         if (!p.canAfford(1, 1, 1, 1, 0)) return false;
 
-        p.deductResources(1, 1, 1, 1, 0);
+        if (!p.deductResources(1, 1, 1, 1, 0)) {
+            updateStatus("Not enough resources.");
+            return false;
+        }
         Settlement s = new Settlement(p, v);
         v.placeBuilding(s);
         p.addSettlement(s);
         return true;
+    }
+
+    // place road for p between v1 and v2; checks shared edge, no duplicate, cost
+    private void placeRoad(Player p, Vertex v1, Vertex v2) {
+        if (!sharesEdge(v1, v2)) {
+            updateStatus("Invalid road location.");
+            return;
+        }
+        for (Road r : board.getRoads()) {
+            if ((r.getV1() == v1 && r.getV2() == v2) || (r.getV1() == v2 && r.getV2() == v1)) {
+                updateStatus("A road already exists there.");
+                return;
+            }
+        }
+        if (!p.canAfford(1, 1, 0, 0, 0)) {
+            updateStatus("Not enough resources. Need: 1 Wood, 1 Brick.");
+            return;
+        }
+        p.deductResources(1, 1, 0, 0, 0);
+        Road road = new Road(p, v1, v2);
+        board.getRoads().add(road);
+        p.getRoads().add(road);
+        updateStatus("Road built.");
+        view.updateSidebar();
+        view.repaint();
+    }
+
+    // free road placement during setup; only checks shared edge rule
+    private void placeSetupRoad(Player p, Vertex v1, Vertex v2) {
+        if (!sharesEdge(v1, v2)) {
+            updateStatus("Invalid road location.");
+            return;
+        }
+        Road road = new Road(p, v1, v2);
+        board.getRoads().add(road);
+        p.getRoads().add(road);
+        advanceSetupAfterRoad();
+        view.repaint();
+    }
+
+    // true if v1 and v2 are adjacent corners on the same tile
+    private boolean sharesEdge(Vertex v1, Vertex v2) {
+        for (Tile t : board.getTiles()) {
+            Vertex[] corners = t.getVertices();
+            int idx1 = -1, idx2 = -1;
+            for (int i = 0; i < 6; i++) {
+                if (corners[i] == v1) idx1 = i;
+                if (corners[i] == v2) idx2 = i;
+            }
+            if (idx1 != -1 && idx2 != -1) {
+                int diff = Math.abs(idx1 - idx2);
+                if (diff == 1 || diff == 5) return true;
+            }
+        }
+        return false;
     }
 
     // dist rule - no adj corner of v can have a building
@@ -358,7 +460,6 @@ public class GameController {
         }
 
         setupPlacingRoad = true;
-        skipRoadButton.setVisible(true);
         String turn = (setupTurnIndex < players.size()) ? "first" : "second";
         updateStatus(current.getName() + ": place your " + turn + " road (or click 'Skip Road').");
         view.updateSidebar();
@@ -378,7 +479,6 @@ public class GameController {
     // advance setup after a road is placed (or skipped)
     private void advanceSetupAfterRoad() {
         setupPlacingRoad = false;
-        skipRoadButton.setVisible(false);
         setupTurnIndex++;
         if (setupTurnIndex >= SETUP_ORDER.length) {
             inSetupPhase = false;

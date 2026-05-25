@@ -48,6 +48,16 @@ public class GameView extends JPanel {
             drawVertex(g, verts.get(i));
         }
 
+        Graphics2D g2 = (Graphics2D) g;
+        ArrayList<Road> roads = board.getRoads();
+        for (int i = 0; i < roads.size(); i++) {
+            Road r = roads.get(i);
+            g2.setStroke(new BasicStroke(4));
+            g2.setColor(getPlayerColor(r.getOwner()));
+            g2.drawLine(r.getV1().getX(), r.getV1().getY(), r.getV2().getX(), r.getV2().getY());
+        }
+        g2.setStroke(new BasicStroke(1));
+
         // status msg at bottom
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.BOLD, 13));

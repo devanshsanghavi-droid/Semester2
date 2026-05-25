@@ -19,6 +19,9 @@ public class Player {
     // all buildings they placed (both settlement + city go here)
     private ArrayList<Building> settlements;
 
+    // all roads they placed
+    private ArrayList<Road> roads;
+
     // new player, starts w 0 everything
     public Player(String name) {
         this.name = name;
@@ -29,6 +32,7 @@ public class Player {
         this.ore = 0;
         this.victoryPoints = 0;
         this.settlements = new ArrayList<Building>();
+        this.roads = new ArrayList<Road>();
     }
 
     // true if they can pay the cost
@@ -36,13 +40,15 @@ public class Player {
         return wood >= w && brick >= br && wool >= wl && wheat >= wh && ore >= o;
     }
 
-    // subtracts the given amts from inventory
-    public void deductResources(int w, int br, int wl, int wh, int o) {
+    // subtracts the given amts from inventory; returns false if insufficient
+    public boolean deductResources(int w, int br, int wl, int wh, int o) {
+        if (wood < w || brick < br || wool < wl || wheat < wh || ore < o) return false;
         wood -= w;
         brick -= br;
         wool -= wl;
         wheat -= wh;
         ore -= o;
+        return true;
     }
 
     // +1 of given resource
@@ -82,4 +88,5 @@ public class Player {
     public int getOre() { return ore; }
     public int getVictoryPoints() { return victoryPoints; }
     public ArrayList<Building> getSettlements() { return settlements; }
+    public ArrayList<Road> getRoads() { return roads; }
 }
