@@ -1,18 +1,18 @@
-// 5 resource constants, thats it
+
 public class ResourceType {
 
-    // wood
+    /** Wood resource, produced by Forest tiles. */
     public static final String WOOD = "WOOD";
 
-    // brick
+    /** Brick resource, produced by Hills tiles. */
     public static final String BRICK = "BRICK";
 
-    // wool (sheep)
+    /** Wool resource, produced by Pasture tiles. */
     public static final String WOOL = "WOOL";
 
-    // wheat/grain w/e
+    /** Wheat resource, produced by Fields tiles. */
     public static final String WHEAT = "WHEAT";
 
-    // ore
+    /** Ore resource, produced by Mountain tiles. */
     public static final String ORE = "ORE";
 }
