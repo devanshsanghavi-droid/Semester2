@@ -12,11 +12,44 @@ public class GameBoard {
     // all placed roads
     private ArrayList<Road> roads;
 
+    // shuffled dev card deck — stored as strings matching DevCard constants
+    private ArrayList<String> devDeck;
+
     public GameBoard() {
         tiles = new ArrayList<Tile>();
         vertices = new ArrayList<Vertex>();
         roads = new ArrayList<Road>();
+        devDeck = new ArrayList<String>();
         initBoard();
+        initDevDeck();
+    }
+
+    // build the official 25 card deck and shuffle it
+    // 14 knight, 2 road building, 2 year of plenty, 2 monopoly, 5 vp
+    private void initDevDeck() {
+        for (int i = 0; i < 14; i++) devDeck.add(DevCard.KNIGHT);
+        for (int i = 0; i < 2;  i++) devDeck.add(DevCard.ROAD_BUILDING);
+        for (int i = 0; i < 2;  i++) devDeck.add(DevCard.YEAR_OF_PLENTY);
+        for (int i = 0; i < 2;  i++) devDeck.add(DevCard.MONOPOLY);
+        for (int i = 0; i < 5;  i++) devDeck.add(DevCard.VICTORY_POINT);
+        // fisher-yates shuffle so the order is random every game
+        for (int i = devDeck.size() - 1; i > 0; i--) {
+            int j = (int)(Math.random() * (i + 1));
+            String tmp = devDeck.get(i);
+            devDeck.set(i, devDeck.get(j));
+            devDeck.set(j, tmp);
+        }
+    }
+
+    // pull the top card off the deck, null if deck is empty
+    public String drawDevCard() {
+        if (devDeck.isEmpty()) return null;
+        return devDeck.remove(devDeck.size() - 1);
+    }
+
+    // how many cards r left (shown in buy button eventually, useful for bot too)
+    public int getDevDeckSize() {
+        return devDeck.size();
     }
 
     // builds the whole board layout
