@@ -2,29 +2,29 @@ import java.awt.*;
 import javax.swing.*;
 import java.util.ArrayList;
 
-// draws the board and all UI panels (log on left, sidebar on right)
-// also owns the JTextArea game log so GameController can append to it
+// draws board and all ui panels (log on left sidebar on right)
+// owns the JTextArea game log so GameController can apend to it
 public class GameView extends JPanel {
 
-    // the board data — tiles, vertices, roads
+    // board data, tiles vertices roads
     private GameBoard board;
 
-    // need player list to look up colors and build sidebar labels
+    // need player list 2 look up colors nd build sidebar labels
     private ArrayList<Player> players;
 
-    // msg drawn at the bottom of the hex board
+    // msg drawn at botom of hex board
     private String message;
 
-    // index of whose turn it is — only that player sees their resource counts
+    // index of whose turn it is, only that player sees their resorce counts
     private int currentPlayerIndex;
 
-    // sidebar labels, one per player, refreshed on updateSidebar()
+    // sidebar labels one per player, refreshed on updateSidebar()
     private JLabel[] playerLabels;
 
-    // the scrollable game log text area on the left side
+    // scrollble game log text area on left side
     private JTextArea logArea;
 
-    // player colors: blue p1, red bot/p2, orange p3, purple p4
+    // player colors: blue p1, red bot/p2, orange p3, purpel p4
     private static final Color[] PLAYER_COLORS = {
         new Color(30, 100, 210),   // blue
         new Color(200, 40, 40),    // red
@@ -41,8 +41,8 @@ public class GameView extends JPanel {
         setBackground(new Color(65, 105, 225)); // ocean blue
     }
 
-    // main draw method: tiles → vertices → roads → status msg
-    // order matters — roads need to go on top of tiles but under vertex dots
+    // main draw method: tiles then vertices then roads then status msg
+    // order matters, roads go on top of tiles
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
@@ -56,10 +56,10 @@ public class GameView extends JPanel {
             drawVertex(g, verts.get(i));
         }
 
-        // roads drawn after vertices so they appear on top of empty dots
-        // but settlemnts/cities still draw over roads bc vertices come last... wait no
-        // actually roads draw AFTER vertices here which means roads r on top
-        // this looks fine in practice tho since roads dont overlap settlements much
+        // roads drawn aftr vertices so they apear on top of empty dots
+        // settlmnts still draw over roads bc vertices come last... wait no
+        // roads draw AFTER vertices here which means roads r on top
+        // looks fine in practice tho since roads dont overlap settlments much
         Graphics2D g2 = (Graphics2D) g;
         ArrayList<Road> roads = board.getRoads();
         for (int i = 0; i < roads.size(); i++) {
@@ -68,15 +68,15 @@ public class GameView extends JPanel {
             g2.setColor(getPlayerColor(r.getOwner()));
             g2.drawLine(r.getV1().getX(), r.getV1().getY(), r.getV2().getX(), r.getV2().getY());
         }
-        g2.setStroke(new BasicStroke(1)); // reset stroke or everything else gets thick
+        g2.setStroke(new BasicStroke(1)); // reset stroke or everything else gets thik
 
-        // status msg at very bottom of board area
+        // status msg at very botom of board area
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.BOLD, 13));
         g.drawString(message, 10, getHeight() - 8);
     }
 
-    // draw one hex tile: background color, black outline, dice number, robber circle
+    // draw one hex tile: bg color, black outline, dice num, robber circle
     private void drawTile(Graphics g, Tile t) {
         g.setColor(getTileColor(t.getResourceType()));
         g.fillPolygon(t.getXPoints(), t.getYPoints(), 6);
@@ -84,14 +84,14 @@ public class GameView extends JPanel {
         g.setColor(Color.BLACK);
         g.drawPolygon(t.getXPoints(), t.getYPoints(), 6);
 
-        // find center of hex by averaging the 6 corner coords
+        // find center by averging the 6 corner coords
         int cx = 0, cy = 0;
         for (int x : t.getXPoints()) cx += x;
         for (int y : t.getYPoints()) cy += y;
         cx /= 6;
         cy /= 6;
 
-        // draw dice number, red for 6 and 8 cuz those r the hot numbers
+        // draw dice num, red 4 6 and 8 cuz those r the hot numbres
         if (t.getDiceNumber() > 0) {
             g.setColor((t.getDiceNumber() == 6 || t.getDiceNumber() == 8) ? Color.RED : Color.BLACK);
             g.setFont(new Font("Arial", Font.BOLD, 18));
@@ -100,7 +100,7 @@ public class GameView extends JPanel {
             g.drawString(num, cx - fm.stringWidth(num) / 2, cy + fm.getAscent() / 2 - 2);
         }
 
-        // robber = black filled circle w white outline so it's visible on dark tiles
+        // robber = black filled circle w white outline so visible on dark tiles
         if (t.hasRobber()) {
             g.setColor(Color.BLACK);
             g.fillOval(cx - 10, cy + 12, 20, 20);
@@ -109,7 +109,7 @@ public class GameView extends JPanel {
         }
     }
 
-    // empty vertex = faint white dot; settlement = colored circle; city = colored square
+    // empty vertex = faint white dot; settlment = colored circle; city = colored square
     private void drawVertex(Graphics g, Vertex v) {
         if (v.isEmpty()) {
             g.setColor(new Color(255, 255, 255, 80));
@@ -126,7 +126,7 @@ public class GameView extends JPanel {
                 g.setColor(Color.BLACK);
                 g.drawRect(v.getX() - 9, v.getY() - 9, 18, 18);
             } else {
-                // settlement = circle
+                // settlment = circle
                 g.fillOval(v.getX() - 8, v.getY() - 8, 16, 16);
                 g.setColor(Color.BLACK);
                 g.drawOval(v.getX() - 8, v.getY() - 8, 16, 16);
@@ -134,7 +134,7 @@ public class GameView extends JPanel {
         }
     }
 
-    // map resource type string to a color for the hex background
+    // map resorce type string 2 a color 4 hex background
     private Color getTileColor(String resourceType) {
         if (resourceType.equals(ResourceType.WOOD))  return new Color(34, 120, 34);
         if (resourceType.equals(ResourceType.BRICK)) return new Color(180, 70, 50);
@@ -144,16 +144,16 @@ public class GameView extends JPanel {
         return new Color(210, 185, 130); // desert tan
     }
 
-    // look up a player's color by looping the players list
+    // look up player color by looping players list
     private Color getPlayerColor(Player p) {
         for (int i = 0; i < players.size(); i++) {
             if (players.get(i) == p) return PLAYER_COLORS[i % PLAYER_COLORS.length];
         }
-        return Color.GRAY; // shouldnt happen but just in case
+        return Color.GRAY; // shuldnt happen but just in case
     }
 
-    // build the right sidebar showing each player's stats
-    // playerLabels[] gets populated here and updated in updateSidebar()
+    // build right sidebar showing each players stats
+    // playerLabels[] gets populated here nd updated in updateSidebar()
     public JPanel createSidebar() {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
@@ -177,7 +177,7 @@ public class GameView extends JPanel {
             sidebar.add(Box.createVerticalStrut(16));
         }
 
-        // resource color key at the bottom of the sidebar
+        // resorce color key at botom of sidebar
         JLabel legend = new JLabel(buildLegend());
         legend.setFont(new Font("Monospaced", Font.PLAIN, 11));
         legend.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -187,8 +187,8 @@ public class GameView extends JPanel {
         return sidebar;
     }
 
-    // build the dark game log panel that goes on the left side of the board
-    // creates the JTextArea and wraps it in a scroll pane
+    // builds dark game log panel goes on left side of board
+    // creates JTextArea nd wraps it in scroll pane
     public JPanel createLogPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(30, 30, 50));
@@ -218,20 +218,20 @@ public class GameView extends JPanel {
         return panel;
     }
 
-    // append a line to the game log and auto-scroll to the bottom
+    // apend line 2 game log nd auto-scroll to botom
     // called from GameController.addLog()
     public void addLog(String msg) {
         if (logArea == null) return;
         logArea.append(msg + "\n");
-        logArea.setCaretPosition(logArea.getDocument().getLength()); // scroll to bottom
+        logArea.setCaretPosition(logArea.getDocument().getLength()); // scroll to botom
     }
 
-    // tell the view which player is active so sidebar privacy works
+    // tell view which player is active so sidebar privacy works
     public void setCurrentPlayerIndex(int i) {
         currentPlayerIndex = i;
     }
 
-    // refresh all player labels - called after any state change that affects sidebar
+    // refresh all player labels, called after any state change afecting sidebar
     public void updateSidebar() {
         if (playerLabels == null) return;
         for (int i = 0; i < players.size(); i++) {
@@ -239,17 +239,17 @@ public class GameView extends JPanel {
         }
     }
 
-    // build the html string for one player's sidebar entry
-    // current player sees full resource counts, others see "hidden"
-    // also shows vp, dev card count, roads/settlements/cities, knights, bonus card flags
+    // build html string 4 one players sidebar entry
+    // current player sees full resorce counts, others see "hidden"
+    // also shows vp dev card count roads/settlments/cities knights bonus card flags
     private String buildPlayerText(int i, boolean isCurrentPlayer) {
         Player p = players.get(i);
-        // show [Army] and [Road] tags if this player holds those bonus cards
+        // show [Army] and [Road] tags if player holds those bonus cards
         String armyTag = p.isHoldsLargestArmy() ? " [Army]" : "";
         String roadTag = p.isHoldsLongestRoad()  ? " [Road]"  : "";
 
         if (!isCurrentPlayer) {
-            // other player — hide resources but show everything else
+            // other player, hide resorces but show everything else
             return "<html><b>" + p.getName() + "</b>" + armyTag + roadTag + "<br>"
                  + "VP: " + p.getVictoryPoints() + "<br>"
                  + "Resources: hidden<br>"
@@ -260,7 +260,7 @@ public class GameView extends JPanel {
                  + "Knights: " + p.getKnightsPlayed()
                  + "</html>";
         }
-        // current player — show everything
+        // current player, show everything
         return "<html><b>" + p.getName() + "</b>" + armyTag + roadTag + "<br>"
              + "VP: " + p.getVictoryPoints() + "<br>"
              + "Wood: "  + p.getWood()  + "  Brick: " + p.getBrick() + "<br>"
@@ -274,7 +274,7 @@ public class GameView extends JPanel {
              + "</html>";
     }
 
-    // resource color key for the bottom of the sidebar
+    // resorce color key 4 botom of sidebar
     private String buildLegend() {
         return "<html><b>Resources</b><br>"
              + "<font color='#227822'>&#9632;</font> Wood &nbsp;"

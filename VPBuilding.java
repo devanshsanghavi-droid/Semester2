@@ -1,14 +1,13 @@
-// fake building with no location on the board
-// only exists so we can call player.addSettlement() and get the victoryPoints
-// field to tick up by 1 when a VP dev card is drawn
-// kinda hacky but it works and keeps the vp logic in one place
+// fake building w no location on board
+// only exists so addSettlement() bumps victoryPoints by 1 when vp card drawn
+// kinda hacky but keeps vp logic in one place
 public class VPBuilding extends Building {
 
-    // null vertex = not on board, thats intentional
+    // null vertex = not on bord, thats intentional
     public VPBuilding(Player owner) {
         super(owner, null);
     }
 
-    // 1 vp per card, same as a settlement
+    // 1 vp same as settlment
     public int getVP() { return 1; }
 }

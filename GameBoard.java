@@ -12,7 +12,7 @@ public class GameBoard {
     // all placed roads
     private ArrayList<Road> roads;
 
-    // shuffled dev card deck — stored as strings matching DevCard constants
+    // shuffled dev card deck, strings matching DevCard constansts
     private ArrayList<String> devDeck;
 
     public GameBoard() {
@@ -24,15 +24,15 @@ public class GameBoard {
         initDevDeck();
     }
 
-    // build the official 25 card deck and shuffle it
-    // 14 knight, 2 road building, 2 year of plenty, 2 monopoly, 5 vp
+    // builds official 25 card deck nd shuffles it
+    // 14 knight 2 road bldg 2 yop 2 mono 5 vp
     private void initDevDeck() {
         for (int i = 0; i < 14; i++) devDeck.add(DevCard.KNIGHT);
         for (int i = 0; i < 2;  i++) devDeck.add(DevCard.ROAD_BUILDING);
         for (int i = 0; i < 2;  i++) devDeck.add(DevCard.YEAR_OF_PLENTY);
         for (int i = 0; i < 2;  i++) devDeck.add(DevCard.MONOPOLY);
         for (int i = 0; i < 5;  i++) devDeck.add(DevCard.VICTORY_POINT);
-        // fisher-yates shuffle so the order is random every game
+        // fisher-yates shuffle so order is randum every game
         for (int i = devDeck.size() - 1; i > 0; i--) {
             int j = (int)(Math.random() * (i + 1));
             String tmp = devDeck.get(i);
@@ -41,13 +41,13 @@ public class GameBoard {
         }
     }
 
-    // pull the top card off the deck, null if deck is empty
+    // pull top card off deck, null if empty
     public String drawDevCard() {
         if (devDeck.isEmpty()) return null;
         return devDeck.remove(devDeck.size() - 1);
     }
 
-    // how many cards r left (shown in buy button eventually, useful for bot too)
+    // how many cards r left, useful 4 bot and buy btn
     public int getDevDeckSize() {
         return devDeck.size();
     }
