@@ -55,9 +55,10 @@ public class GameController {
     private int lastDie1;
     private int lastDie2;
 
-    // player 2 is always bot, flip this false 4 2 humans
+    // true if player 2 is a bot
     private boolean botEnabled;
-    private int botStep; // which step bot state machine is on
+    // true while bot is acting, blocks human mouse clicks
+    private boolean botThinking;
 
     // buttons stored as fields so we can enable/disable from anywhere
     // rule: only Roll Dice active before roll, all others active after roll
@@ -80,16 +81,24 @@ public class GameController {
     private JPanel cardPanel;
 
     public static void main(String[] args) {
-        GameController gc = new GameController();
+        Object[] options = {"vs Bot", "Player vs Player"};
+        int choice = JOptionPane.showOptionDialog(null,
+            "Choose game mode:",
+            "Settlers of Catan",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.PLAIN_MESSAGE,
+            null, options, options[0]);
+        boolean vsBot = (choice != 1); // default to bot if dialog closed
+        GameController gc = new GameController(vsBot);
         gc.showIntro();
     }
 
-    // set up everything at 0/false, bot is player 2
-    public GameController() {
+    // set up everything at 0/false
+    public GameController(boolean vsBot) {
         board = new GameBoard();
         players = new ArrayList<Player>();
         players.add(new Player("Player 1"));
-        players.add(new Player("Bot"));
+        players.add(new Player(vsBot ? "Bot" : "Player 2"));
         currentPlayerIndex = 0;
         hasRolled = false;
         gameOver = false;
@@ -107,8 +116,8 @@ public class GameController {
         longestRoadHolder = -1;
         lastDie1 = 0;
         lastDie2 = 0;
-        botEnabled = true;
-        botStep = 0;
+        botEnabled = vsBot;
+        botThinking = false;
         view = new GameView(board, players);
     }
 
@@ -172,7 +181,7 @@ public class GameController {
         // allow clicks during setup nd during movingRobber even before hasRolled
         view.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) {
-                if (!gameOver && (hasRolled || inSetupPhase || movingRobber)) {
+                if (!gameOver && !botThinking && (hasRolled || inSetupPhase || movingRobber)) {
                     handleBoardClick(e.getX(), e.getY());
                 }
             }
@@ -394,7 +403,7 @@ public class GameController {
         addLog(players.get(currentPlayerIndex).getName() + " ended their turn.");
 
         if (botEnabled && nextIndex == 1) {
-            // bot skips transition screen, just log and start bot timer chain
+            // bot skips transition screen
             currentPlayerIndex = nextIndex;
             hasRolled = false;
             rollButton.setEnabled(false);
@@ -402,15 +411,22 @@ public class GameController {
             setPostRollButtons(false);
             players.get(currentPlayerIndex).clearBoughtThisTurn();
             hasPlayedDevCard = false;
+            botThinking = true;
             view.setCurrentPlayerIndex(currentPlayerIndex);
             view.updateSidebar();
             updateStatus("Bot is thinking...");
             addLog("--- Bot's turn ---");
             view.repaint();
-            botStep = 0;
-            scheduleBotStep(800); // kick off state machine
+            Timer t = new Timer(800, new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    ((Timer) e.getSource()).stop();
+                    botTakeTurn();
+                }
+            });
+            t.setRepeats(false);
+            t.start();
         } else {
-            showTransition(nextIndex); // human turn: show black screen first
+            showTransition(nextIndex);
         }
     }
 
@@ -639,6 +655,19 @@ public class GameController {
         view.setCurrentPlayerIndex(currentPlayerIndex);
         view.updateSidebar();
         view.repaint();
+
+        // if its bots setup turn, auto-place after short delay
+        if (botEnabled && inSetupPhase && currentPlayerIndex == 1) {
+            botThinking = true;
+            Timer t = new Timer(700, new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    ((Timer) e.getSource()).stop();
+                    botSetupSettlement();
+                }
+            });
+            t.setRepeats(false);
+            t.start();
+        }
     }
 
     // paid settlment placement: distance rule + connectivity + cost
@@ -1417,121 +1446,154 @@ public class GameController {
 
     // ---- BOT ----
 
-    // fire one-shot timer that calls runBotStep() after delayMs milliseconds
-    // chaining these creates illusion bot is "thinking"
-    private void scheduleBotStep(int delayMs) {
-        Timer t = new Timer(delayMs, new ActionListener() {
+    // bot setup: pick vertex w most adjacent non-desert tiles, place free settlment
+    private void botSetupSettlement() {
+        Player bot = players.get(currentPlayerIndex);
+        Vertex best = null;
+        int bestScore = -1;
+        for (Vertex v : board.getVertices()) {
+            if (!v.isEmpty() || !isValidPlacement(v)) continue;
+            int score = 0;
+            for (Tile t : v.getAdjacentTiles()) {
+                if (!t.getResourceType().equals("DESERT")) score++;
+            }
+            if (score > bestScore) { bestScore = score; best = v; }
+        }
+        if (best == null) { botThinking = false; return; }
+
+        final Vertex placed = best;
+        Settlement s = new Settlement(bot, placed);
+        placed.placeBuilding(s);
+        bot.addSettlement(s);
+        if (setupTurnIndex >= players.size()) distributeSetupResources(placed);
+        setupPlacingRoad = true;
+        addLog("Bot placed a settlement.");
+        updateStatus("Bot placed a settlement.");
+        view.setCurrentPlayerIndex(currentPlayerIndex);
+        view.updateSidebar();
+        view.repaint();
+
+        // place road next after short delay
+        Timer t = new Timer(600, new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 ((Timer) e.getSource()).stop();
-                runBotStep();
+                botSetupRoad(placed);
             }
         });
         t.setRepeats(false);
         t.start();
     }
 
-    // bot turn state machine, botStep increments each call
-    // order: roll -> robber -> knight -> city -> settlment -> road -> buy card -> end turn
-    private void runBotStep() {
+    // bot setup: place free road off the just-placed settlment vertex
+    private void botSetupRoad(Vertex settlementVertex) {
         Player bot = players.get(currentPlayerIndex);
-        botStep++;
-
-        if (botStep == 1) {
-            // always roll first
-            takeTurn();
-            if (movingRobber) { scheduleBotStep(800); return; } // rolled 7, handle robber next
-            scheduleBotStep(800);
-            return;
-        }
-
-        if (botStep == 2 && movingRobber) {
-            // bot rolled 7 needs 2 move robber
-            botMoveRobber();
-            scheduleBotStep(800);
-            return;
-        }
-
-        if (botStep == 3) {
-            // play knight if available (helps build toward largest army)
-            if (bot.playableCount(DevCard.KNIGHT) > 0 && !hasPlayedDevCard) {
-                playKnight();
-                if (movingRobber) { scheduleBotStep(800); return; } // knight also moves robber
-            }
-            scheduleBotStep(800);
-            return;
-        }
-
-        if (botStep == 4 && movingRobber) {
-            // robber from playing knight
-            botMoveRobber();
-            scheduleBotStep(800);
-            return;
-        }
-
-        if (botStep == 5) {
-            // upgrd 2 city if possible, most efficent use of resorces
-            if (bot.canAfford(0, 0, 0, 2, 3)) {
-                for (Building b : bot.getSettlements()) {
-                    if (b instanceof Settlement) {
-                        bot.deductResources(0, 0, 0, 2, 3);
-                        ((Settlement) b).upgrade();
-                        addLog("Bot upgraded to a city.");
-                        updateStatus("Bot built a city.");
-                        checkWinAndHandle();
-                        view.setCurrentPlayerIndex(currentPlayerIndex);
-                        view.updateSidebar();
-                        view.repaint();
-                        break; // only upgrd one per turn
+        for (Tile t : settlementVertex.getAdjacentTiles()) {
+            Vertex[] corners = t.getVertices();
+            for (int i = 0; i < 6; i++) {
+                if (corners[i] == settlementVertex) {
+                    Vertex other = corners[(i + 1) % 6];
+                    if (!isDuplicateRoad(settlementVertex, other)) {
+                        placeSetupRoad(bot, settlementVertex, other);
+                        botThinking = false;
+                        return;
+                    }
+                    other = corners[(i + 5) % 6];
+                    if (!isDuplicateRoad(settlementVertex, other)) {
+                        placeSetupRoad(bot, settlementVertex, other);
+                        botThinking = false;
+                        return;
                     }
                 }
             }
-            scheduleBotStep(800);
-            return;
         }
+        // no road found, just advance anyway
+        advanceSetupAfterRoad();
+        botThinking = false;
+    }
 
-        if (botStep == 6) {
-            // build settlment at any valid connected vertex
-            if (bot.canAfford(1, 1, 1, 1, 0)) {
-                Vertex best = findBotSettlementSpot(bot);
-                if (best != null && placeSettlement(bot, best)) {
-                    addLog("Bot built a settlement.");
-                    updateStatus("Bot built a settlement.");
-                    checkLongestRoad();
+    // bot normal turn: roll, handle robber if 7, then build, then end
+    private void botTakeTurn() {
+        takeTurn();
+        if (movingRobber) {
+            // rolled 7, move robber then do actions
+            Timer t = new Timer(800, new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    ((Timer) e.getSource()).stop();
+                    botMoveRobber();
+                    botScheduleActions();
+                }
+            });
+            t.setRepeats(false);
+            t.start();
+        } else {
+            botScheduleActions();
+        }
+    }
+
+    // wait 800ms then do all bot build actions and end turn
+    private void botScheduleActions() {
+        Timer t = new Timer(800, new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                ((Timer) e.getSource()).stop();
+                botDoActions();
+            }
+        });
+        t.setRepeats(false);
+        t.start();
+    }
+
+    // bot builds whatever it can afford in priority order, then ends turn
+    private void botDoActions() {
+        Player bot = players.get(currentPlayerIndex);
+
+        // city upgrade first (best vp per resource)
+        if (bot.canAfford(0, 0, 0, 2, 3)) {
+            for (Building b : bot.getSettlements()) {
+                if (b instanceof Settlement) {
+                    bot.deductResources(0, 0, 0, 2, 3);
+                    ((Settlement) b).upgrade();
+                    addLog("Bot upgraded to a city.");
                     checkWinAndHandle();
                     view.setCurrentPlayerIndex(currentPlayerIndex);
                     view.updateSidebar();
                     view.repaint();
+                    break;
                 }
             }
-            scheduleBotStep(800);
-            return;
         }
 
-        if (botStep == 7) {
-            // build road 2 expand network
-            if (bot.canAfford(1, 1, 0, 0, 0)) {
-                boolean built = tryBotBuildRoad(bot);
-                if (built) {
-                    view.setCurrentPlayerIndex(currentPlayerIndex);
-                    view.updateSidebar();
-                    view.repaint();
-                }
+        // settlement if theres a valid connected spot
+        if (bot.canAfford(1, 1, 1, 1, 0)) {
+            Vertex spot = findBotSettlementSpot(bot);
+            if (spot != null && placeSettlement(bot, spot)) {
+                addLog("Bot built a settlement.");
+                checkLongestRoad();
+                checkWinAndHandle();
+                view.setCurrentPlayerIndex(currentPlayerIndex);
+                view.updateSidebar();
+                view.repaint();
             }
-            scheduleBotStep(800);
-            return;
         }
 
-        if (botStep == 8) {
-            // buy dev card if affordable, knight spam solid strategy
-            if (bot.canAfford(0, 0, 1, 1, 1)) {
-                buyDevCard();
+        // road to expand network
+        if (bot.canAfford(1, 1, 0, 0, 0)) {
+            if (tryBotBuildRoad(bot)) {
+                view.setCurrentPlayerIndex(currentPlayerIndex);
+                view.updateSidebar();
+                view.repaint();
             }
-            scheduleBotStep(600);
-            return;
         }
 
-        // step 9+: done, end turn
-        endTurn();
+        // end turn after short pause so human can see what happened
+        Timer t = new Timer(600, new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                ((Timer) e.getSource()).stop();
+                botThinking = false;
+                endTurn();
+            }
+        });
+        t.setRepeats(false);
+        t.start();
     }
 
     // bot robber logic: target tile w most opponent bldgs on it
