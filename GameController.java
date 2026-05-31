@@ -71,9 +71,10 @@ public class GameController {
     private JButton offerTradeButton;
     private JButton tradeButton;
 
-    // status bar label at botom + transition screen label
+    // status bar label at botom + transition screen labels
     private JLabel statusLabel;
     private JLabel transitionLabel;
+    private JLabel transitionSubLabel;
 
     // frame + cardlayout 4 intro -> game -> transition panels
     private JFrame frame;
@@ -190,16 +191,30 @@ public class GameController {
         return gamePanel;
     }
 
-    // black panel w big centered text, shows between turns so other player cant see cards
+    // black panel shown between turns so other player cant peek at cards
     private JPanel buildTransitionPanel() {
-        JPanel panel = new JPanel(new GridBagLayout()); // gridbaglayout centers stuff automaticly
+        JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(Color.BLACK);
         panel.setPreferredSize(new Dimension(1100, 660));
 
+        JPanel inner = new JPanel();
+        inner.setLayout(new BoxLayout(inner, BoxLayout.Y_AXIS));
+        inner.setBackground(Color.BLACK);
+
         transitionLabel = new JLabel("...");
         transitionLabel.setForeground(Color.WHITE);
-        transitionLabel.setFont(new Font("Arial", Font.BOLD, 32));
-        panel.add(transitionLabel);
+        transitionLabel.setFont(new Font("Arial", Font.BOLD, 48));
+        transitionLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        transitionSubLabel = new JLabel("...");
+        transitionSubLabel.setForeground(new Color(180, 180, 180));
+        transitionSubLabel.setFont(new Font("Arial", Font.PLAIN, 22));
+        transitionSubLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        inner.add(transitionLabel);
+        inner.add(Box.createVerticalStrut(18));
+        inner.add(transitionSubLabel);
+        panel.add(inner);
 
         return panel;
     }
@@ -217,7 +232,9 @@ public class GameController {
         hasPlayedDevCard = false;
 
         String name = players.get(nextIndex).getName();
-        transitionLabel.setText(name + " - don't look!");
+        String prev = players.get((nextIndex + 1) % players.size()).getName();
+        transitionLabel.setText(prev + " - look away!");
+        transitionSubLabel.setText("Hand the computer to " + name + ". Starting in 3 seconds...");
         cardLayout.show(cardPanel, "transition");
 
         // single-fire timer, fires once after 3 seconds then stops itself
