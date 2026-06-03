@@ -21,15 +21,17 @@ public class GameView extends JPanel {
     // sidebar labels one per player, refreshed on updateSidebar()
     private JLabel[] playerLabels;
 
-    // scrollble game log text area on left side
-    private JTextArea logArea;
+    // offset applied 2 board drawing so it stays centered no matter panel size
+    // recalculated every paint, read by GameController 2 adjust mouse coords
+    private int boardOffsetX = 0;
+    private int boardOffsetY = 0;
 
-    // player colors: blue p1, red bot/p2, orange p3, purpel p4
+    // player colors: bright so they pop against any tile color
     private static final Color[] PLAYER_COLORS = {
-        new Color(30, 100, 210),   // blue
-        new Color(200, 40, 40),    // red
-        new Color(200, 120, 0),    // orange
-        new Color(100, 0, 160)     // purple
+        new Color(30, 144, 255),   // dodger blue
+        new Color(220, 20,  60),   // crimson red
+        new Color(255, 140,  0),   // dark orange
+        new Color(148,  0, 211)    // violet
     };
 
     public GameView(GameBoard board, ArrayList<Player> players) {
@@ -42,9 +44,16 @@ public class GameView extends JPanel {
     }
 
     // main draw method: tiles then vertices then roads then status msg
-    // order matters, roads go on top of tiles
+    // board coords r hardcoded around (350,350) so we translate g2d 2 keep it centered
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+
+        // board hardcoded center is (350,350), shift so it lands at panel center
+        boardOffsetX = getWidth()  / 2 - 350;
+        boardOffsetY = getHeight() / 2 - 350;
+
+        Graphics2D g2 = (Graphics2D) g;
+        g2.translate(boardOffsetX, boardOffsetY);
 
         ArrayList<Tile> tiles = board.getTiles();
         for (int i = 0; i < tiles.size(); i++) {
@@ -56,24 +65,40 @@ public class GameView extends JPanel {
             drawVertex(g, verts.get(i));
         }
 
-        // roads drawn aftr vertices so they apear on top of empty dots
-        // settlmnts still draw over roads bc vertices come last... wait no
-        // roads draw AFTER vertices here which means roads r on top
-        // looks fine in practice tho since roads dont overlap settlments much
-        Graphics2D g2 = (Graphics2D) g;
+        // roads drawn aftr vertices
+        // white outline drawn first so road pops against any tile color
         ArrayList<Road> roads = board.getRoads();
         for (int i = 0; i < roads.size(); i++) {
             Road r = roads.get(i);
-            g2.setStroke(new BasicStroke(4));
+            int x1 = r.getV1().getX(), y1 = r.getV1().getY();
+            int x2 = r.getV2().getX(), y2 = r.getV2().getY();
+            g2.setStroke(new BasicStroke(7, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.setColor(Color.WHITE);
+            g2.drawLine(x1, y1, x2, y2);
+            g2.setStroke(new BasicStroke(4, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             g2.setColor(getPlayerColor(r.getOwner()));
-            g2.drawLine(r.getV1().getX(), r.getV1().getY(), r.getV2().getX(), r.getV2().getY());
+            g2.drawLine(x1, y1, x2, y2);
         }
-        g2.setStroke(new BasicStroke(1)); // reset stroke or everything else gets thik
+        g2.setStroke(new BasicStroke(1)); // reset or everything else gets thik
 
-        // status msg at very botom of board area
-        g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 13));
-        g.drawString(message, 10, getHeight() - 8);
+        // undo translation before drawing status (panel-relative coords)
+        g2.translate(-boardOffsetX, -boardOffsetY);
+
+        // status bar: big centered text w dark pill bg so its readable over any tile color
+        g2.setFont(new Font("Arial", Font.BOLD, 24));
+        FontMetrics sfm = g2.getFontMetrics();
+        int sw   = sfm.stringWidth(message);
+        int sx   = (getWidth() - sw) / 2;
+        int sy   = getHeight() - 16;
+        int padX = 18, padY = 8;
+
+        // semi-transparent dark rounded rect behind text
+        g2.setColor(new Color(0, 0, 0, 160));
+        g2.fillRoundRect(sx - padX, sy - sfm.getAscent() - padY,
+                         sw + padX * 2, sfm.getHeight() + padY * 2, 16, 16);
+
+        g2.setColor(Color.WHITE);
+        g2.drawString(message, sx, sy);
     }
 
     // draw one hex tile: bg color, black outline, dice num, robber circle
@@ -109,27 +134,37 @@ public class GameView extends JPanel {
         }
     }
 
-    // empty vertex = faint white dot; settlment = colored circle; city = colored square
+    // empty vertex = faint dot; settlment = colored circle w white halo; city = colored square w white halo
+    // white outline drawn 1st so pieces contrast against any tile color
     private void drawVertex(Graphics g, Vertex v) {
         if (v.isEmpty()) {
-            g.setColor(new Color(255, 255, 255, 80));
+            g.setColor(new Color(255, 255, 255, 60));
             g.fillOval(v.getX() - 5, v.getY() - 5, 10, 10);
-            g.setColor(new Color(180, 180, 180));
+            g.setColor(new Color(255, 255, 255, 120));
             g.drawOval(v.getX() - 5, v.getY() - 5, 10, 10);
         } else {
             Building b = v.getBuilding();
             Color c = getPlayerColor(b.getOwner());
-            g.setColor(c);
             if (b instanceof City) {
-                // city = square, bigger
-                g.fillRect(v.getX() - 9, v.getY() - 9, 18, 18);
-                g.setColor(Color.BLACK);
-                g.drawRect(v.getX() - 9, v.getY() - 9, 18, 18);
+                // white halo first
+                g.setColor(Color.WHITE);
+                g.fillRect(v.getX() - 12, v.getY() - 12, 24, 24);
+                // colored fill
+                g.setColor(c);
+                g.fillRect(v.getX() - 10, v.getY() - 10, 20, 20);
+                // dark outline
+                g.setColor(new Color(30, 30, 30));
+                g.drawRect(v.getX() - 10, v.getY() - 10, 20, 20);
             } else {
-                // settlment = circle
-                g.fillOval(v.getX() - 8, v.getY() - 8, 16, 16);
-                g.setColor(Color.BLACK);
-                g.drawOval(v.getX() - 8, v.getY() - 8, 16, 16);
+                // white halo first
+                g.setColor(Color.WHITE);
+                g.fillOval(v.getX() - 11, v.getY() - 11, 22, 22);
+                // colored fill
+                g.setColor(c);
+                g.fillOval(v.getX() - 9, v.getY() - 9, 18, 18);
+                // dark outline
+                g.setColor(new Color(30, 30, 30));
+                g.drawOval(v.getX() - 9, v.getY() - 9, 18, 18);
             }
         }
     }
@@ -158,7 +193,7 @@ public class GameView extends JPanel {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBackground(new Color(245, 222, 179)); // sandy color
-        sidebar.setPreferredSize(new Dimension(210, 620));
+        sidebar.setPreferredSize(new Dimension(250, 620));
         sidebar.setBorder(BorderFactory.createEmptyBorder(12, 10, 10, 10));
 
         JLabel title = new JLabel("Players");
@@ -171,59 +206,20 @@ public class GameView extends JPanel {
         for (int i = 0; i < players.size(); i++) {
             playerLabels[i] = new JLabel(buildPlayerText(i, i == currentPlayerIndex));
             playerLabels[i].setForeground(PLAYER_COLORS[i % PLAYER_COLORS.length]);
-            playerLabels[i].setFont(new Font("Monospaced", Font.PLAIN, 11));
+            playerLabels[i].setFont(new Font("Monospaced", Font.PLAIN, 14));
             playerLabels[i].setAlignmentX(Component.LEFT_ALIGNMENT);
             sidebar.add(playerLabels[i]);
-            sidebar.add(Box.createVerticalStrut(16));
+            sidebar.add(Box.createVerticalStrut(30));
         }
 
         // resorce color key at botom of sidebar
         JLabel legend = new JLabel(buildLegend());
-        legend.setFont(new Font("Monospaced", Font.PLAIN, 11));
+        legend.setFont(new Font("Monospaced", Font.PLAIN, 13));
         legend.setAlignmentX(Component.LEFT_ALIGNMENT);
         sidebar.add(Box.createVerticalGlue());
         sidebar.add(legend);
 
         return sidebar;
-    }
-
-    // builds dark game log panel goes on left side of board
-    // creates JTextArea nd wraps it in scroll pane
-    public JPanel createLogPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(30, 30, 50));
-        panel.setPreferredSize(new Dimension(175, 620));
-
-        JLabel title = new JLabel(" Game Log");
-        title.setForeground(Color.LIGHT_GRAY);
-        title.setFont(new Font("Arial", Font.BOLD, 13));
-        title.setBackground(new Color(20, 20, 40));
-        title.setOpaque(true);
-        panel.add(title, BorderLayout.NORTH);
-
-        logArea = new JTextArea();
-        logArea.setEditable(false);
-        logArea.setLineWrap(true);
-        logArea.setWrapStyleWord(true);
-        logArea.setBackground(new Color(30, 30, 50));
-        logArea.setForeground(new Color(200, 200, 200));
-        logArea.setFont(new Font("Monospaced", Font.PLAIN, 11));
-        logArea.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
-
-        JScrollPane scroll = new JScrollPane(logArea);
-        scroll.setBorder(null);
-        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        panel.add(scroll, BorderLayout.CENTER);
-
-        return panel;
-    }
-
-    // apend line 2 game log nd auto-scroll to botom
-    // called from GameController.addLog()
-    public void addLog(String msg) {
-        if (logArea == null) return;
-        logArea.append(msg + "\n");
-        logArea.setCaretPosition(logArea.getDocument().getLength()); // scroll to botom
     }
 
     // tell view which player is active so sidebar privacy works
@@ -286,4 +282,8 @@ public class GameView extends JPanel {
     }
 
     public void setMessage(String s) { message = s; }
+
+    // GameController reads these 2 convert raw mouse coords 2 board coords
+    public int getBoardOffsetX() { return boardOffsetX; }
+    public int getBoardOffsetY() { return boardOffsetY; }
 }

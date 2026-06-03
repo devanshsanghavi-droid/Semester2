@@ -68,7 +68,6 @@ public class GameController {
     private JButton buildCityButton;
     private JButton buyDevCardButton;
     private JButton playDevCardButton;
-    private JButton offerTradeButton;
     private JButton tradeButton;
 
     // status bar label at botom + transition screen labels
@@ -82,24 +81,16 @@ public class GameController {
     private JPanel cardPanel;
 
     public static void main(String[] args) {
-        Object[] options = {"vs Bot", "Player vs Player"};
-        int choice = JOptionPane.showOptionDialog(null,
-            "Choose game mode:",
-            "Settlers of Catan",
-            JOptionPane.DEFAULT_OPTION,
-            JOptionPane.PLAIN_MESSAGE,
-            null, options, options[0]);
-        boolean vsBot = (choice != 1); // default to bot if dialog closed
-        GameController gc = new GameController(vsBot);
+        GameController gc = new GameController();
         gc.showIntro();
     }
 
-    // set up everything at 0/false
-    public GameController(boolean vsBot) {
+    // set up everything at 0/false, vsBot resolved in showIntro
+    public GameController() {
         board = new GameBoard();
         players = new ArrayList<Player>();
         players.add(new Player("Player 1"));
-        players.add(new Player(vsBot ? "Bot" : "Player 2"));
+        players.add(new Player("Player 2"));
         currentPlayerIndex = 0;
         hasRolled = false;
         gameOver = false;
@@ -117,7 +108,7 @@ public class GameController {
         longestRoadHolder = -1;
         lastDie1 = 0;
         lastDie2 = 0;
-        botEnabled = vsBot;
+        botEnabled = false;
         botThinking = false;
         view = new GameView(board, players);
     }
@@ -146,6 +137,19 @@ public class GameController {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
 
+        // mode dialog shown after frame is up so it centers on the game window
+        Object[] options = {"vs Bot", "Player vs Player"};
+        int choice = JOptionPane.showOptionDialog(frame,
+            "Choose game mode:",
+            "Settlers of Catan",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.PLAIN_MESSAGE,
+            null, options, options[0]);
+        if (choice != 1) { // default to bot if dialog closed
+            botEnabled = true;
+            players.get(1).setName("Bot");
+        }
+
         cardLayout.show(cardPanel, "intro");
         intro.startCrawl();
     }
@@ -166,16 +170,14 @@ public class GameController {
         view.repaint();
     }
 
-    // assemble main game panel: log on left board in center sidebar on right btns on botom
+    // assemble main game panel: board in center sidebar on right btns on botom
     private JPanel buildGamePanel() {
         JPanel gamePanel = new JPanel(new BorderLayout());
 
-        JPanel logPanel = view.createLogPanel();
-        JPanel sidebar  = view.createSidebar();
+        JPanel sidebar = view.createSidebar();
 
-        gamePanel.add(view,     BorderLayout.CENTER);
-        gamePanel.add(logPanel, BorderLayout.WEST);
-        gamePanel.add(sidebar,  BorderLayout.EAST);
+        gamePanel.add(view,    BorderLayout.CENTER);
+        gamePanel.add(sidebar, BorderLayout.EAST);
         gamePanel.add(buildBottomPanel(), BorderLayout.SOUTH);
 
         // mouse clicks on board panel only (not sidebar or log)
@@ -265,7 +267,6 @@ public class GameController {
         buildCityButton   = new JButton("Build City");
         buyDevCardButton  = new JButton("Buy Dev Card");
         playDevCardButton = new JButton("Play Dev Card");
-        offerTradeButton  = new JButton("Offer Trade");
         tradeButton       = new JButton("Bank Trade");
         endTurnButton     = new JButton("End Turn");
         JButton infoButton = new JButton("?"); // info popup
@@ -329,12 +330,6 @@ public class GameController {
             }
         });
 
-        offerTradeButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (!gameOver) openOfferTradeDialog();
-            }
-        });
-
         tradeButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 if (!gameOver) openBankTradeDialog();
@@ -353,7 +348,6 @@ public class GameController {
         bottom.add(buildCityButton);
         bottom.add(buyDevCardButton);
         bottom.add(playDevCardButton);
-        bottom.add(offerTradeButton);
         bottom.add(tradeButton);
         bottom.add(endTurnButton);
         bottom.add(infoButton);
@@ -369,7 +363,6 @@ public class GameController {
         buildCityButton.setEnabled(enabled);
         buyDevCardButton.setEnabled(enabled);
         playDevCardButton.setEnabled(enabled);
-        offerTradeButton.setEnabled(enabled);
         tradeButton.setEnabled(enabled);
     }
 
@@ -389,7 +382,6 @@ public class GameController {
 
         String rollMsg = players.get(currentPlayerIndex).getName()
                        + " rolled " + lastDie1 + " + " + lastDie2 + " = " + roll;
-        addLog(rollMsg);
 
         if (roll == 7) {
             // anyone w more than 7 cards has 2 discard half (rounded down)
@@ -400,10 +392,7 @@ public class GameController {
             movingRobber = true;
             updateStatus(rollMsg + ", move the robber!");
         } else {
-            // snapshot before so we can log exactly what each player gained
-            int[] before = resourceSnapshot();
             distributeResources(roll);
-            logResourceGains(before);
             updateStatus(rollMsg + ". Build something!");
         }
 
@@ -416,8 +405,6 @@ public class GameController {
     private void endTurn() {
         checkLongestRoad(); // recalc now in case roads changed this turn
         int nextIndex = (currentPlayerIndex + 1) % players.size();
-
-        addLog(players.get(currentPlayerIndex).getName() + " ended their turn.");
 
         if (botEnabled && nextIndex == 1) {
             // bot skips transition screen
@@ -432,7 +419,6 @@ public class GameController {
             view.setCurrentPlayerIndex(currentPlayerIndex);
             view.updateSidebar();
             updateStatus("Bot is thinking...");
-            addLog("--- Bot's turn ---");
             view.repaint();
             Timer t = new Timer(800, new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
@@ -451,7 +437,10 @@ public class GameController {
 
     // single entry point 4 all board clicks
     // checks modes in order: robber > setup > road > city > normal settlment
-    private void handleBoardClick(int mouseX, int mouseY) {
+    private void handleBoardClick(int rawX, int rawY) {
+        // convert panel coords 2 board coords (board is translated when drawn)
+        int mouseX = rawX - view.getBoardOffsetX();
+        int mouseY = rawY - view.getBoardOffsetY();
 
         // robber always takes priority over everything else
         if (movingRobber) {
@@ -479,13 +468,9 @@ public class GameController {
             Player current = players.get(currentPlayerIndex);
             Player victim = findVictim(closest, current);
             if (victim != null) {
-                String stolen = stealRandom(victim, current);
-                if (stolen != null) {
-                    addLog(current.getName() + " stole 1 " + stolen + " from " + victim.getName());
-                }
+                stealRandom(victim, current);
             }
             movingRobber = false;
-            addLog(current.getName() + " moved the robber.");
             updateStatus("Robber moved.");
             view.setCurrentPlayerIndex(currentPlayerIndex);
             view.updateSidebar();
@@ -549,7 +534,6 @@ public class GameController {
             } else {
                 current.deductResources(0, 0, 0, 2, 3);
                 ((Settlement) nearest.getBuilding()).upgrade(); // settlment.upgrade() handles the swap
-                addLog(current.getName() + " upgraded to a city.");
                 updateStatus("City built!");
                 checkWinAndHandle(); // city gives +1 vp might win
                 view.setCurrentPlayerIndex(currentPlayerIndex);
@@ -566,7 +550,6 @@ public class GameController {
         if (nearest == null) return;
         Player current = players.get(currentPlayerIndex);
         if (placeSettlement(current, nearest)) {
-            addLog(current.getName() + " built a settlement.");
             updateStatus(current.getName() + " built a settlement!");
             checkLongestRoad(); // new settlment might break opponents road
             checkWinAndHandle();
@@ -620,7 +603,6 @@ public class GameController {
         if (setupTurnIndex >= players.size()) distributeSetupResources(nearest);
         setupPlacingRoad = true;
         String turn = (setupTurnIndex < players.size()) ? "first" : "second";
-        addLog(current.getName() + " placed " + turn + " settlement.");
         updateStatus(current.getName() + ": place your " + turn + " road.");
         view.setCurrentPlayerIndex(currentPlayerIndex);
         view.updateSidebar();
@@ -646,7 +628,6 @@ public class GameController {
         Road road = new Road(p, v1, v2);
         board.getRoads().add(road);
         p.getRoads().add(road);
-        addLog(p.getName() + " placed a road.");
         advanceSetupAfterRoad();
         view.repaint();
     }
@@ -718,7 +699,6 @@ public class GameController {
         Road road = new Road(p, v1, v2);
         board.getRoads().add(road);
         p.getRoads().add(road);
-        addLog(p.getName() + " built a road.");
         updateStatus("Road built.");
         checkLongestRoad();
         view.setCurrentPlayerIndex(currentPlayerIndex);
@@ -751,7 +731,6 @@ public class GameController {
         Road road = new Road(p, v1, v2);
         board.getRoads().add(road);
         p.getRoads().add(road);
-        addLog(p.getName() + " built a free road.");
         checkLongestRoad();
         view.setCurrentPlayerIndex(currentPlayerIndex);
         view.updateSidebar();
@@ -845,34 +824,6 @@ public class GameController {
         }
     }
 
-    // take snapshot of all resorce counts before distribution
-    // used with logResourceGains 2 log what changed
-    private int[] resourceSnapshot() {
-        int[] snap = new int[players.size() * 5];
-        for (int i = 0; i < players.size(); i++) {
-            Player p = players.get(i);
-            snap[i * 5 + 0] = p.getWood();
-            snap[i * 5 + 1] = p.getBrick();
-            snap[i * 5 + 2] = p.getWool();
-            snap[i * 5 + 3] = p.getWheat();
-            snap[i * 5 + 4] = p.getOre();
-        }
-        return snap;
-    }
-
-    // compare current counts 2 snapshot nd log anything that went up
-    private void logResourceGains(int[] before) {
-        String[] names = {"Wood", "Brick", "Wool", "Wheat", "Ore"};
-        for (int i = 0; i < players.size(); i++) {
-            Player p = players.get(i);
-            int[] cur = {p.getWood(), p.getBrick(), p.getWool(), p.getWheat(), p.getOre()};
-            for (int j = 0; j < 5; j++) {
-                int gain = cur[j] - before[i * 5 + j];
-                if (gain > 0) addLog(p.getName() + " received " + gain + " " + names[j]);
-            }
-        }
-    }
-
     // ---- ROBBER HELPERS ----
 
     // find first opponent player w bldg on any corner of tile t
@@ -926,13 +877,11 @@ public class GameController {
             // use addSettlement(new VPBuilding) so vp field gets bumped same way as settlment
             current.addDevCard(card);
             current.addSettlement(new VPBuilding(current));
-            addLog(current.getName() + " drew a Victory Point card! (+1 VP)");
             updateStatus("Victory Point card! +1 VP");
             checkWinAndHandle(); // vp card might push to 10
         } else {
             current.addDevCard(card);
             current.addBoughtThisTurn(card); // mark it so cant be played same turn
-            addLog(current.getName() + " bought a dev card.");
             updateStatus("Dev card added to hand.");
         }
         view.setCurrentPlayerIndex(currentPlayerIndex);
@@ -989,7 +938,6 @@ public class GameController {
         current.incrementKnights();
         hasPlayedDevCard = true;
         movingRobber = true; // clicking tile will now move robber
-        addLog(current.getName() + " played Knight.");
         updateStatus("Knight: move the robber.");
         checkLargestArmy(); // 3+ knights might give army card
         view.setCurrentPlayerIndex(currentPlayerIndex);
@@ -1007,7 +955,6 @@ public class GameController {
         roadBuildingRoadsLeft = 2;
         placingRoad = true;
         roadFirstClick = null;
-        addLog(current.getName() + " played Road Building.");
         updateStatus("Road Building: place road 1 of 2.");
     }
 
@@ -1039,7 +986,6 @@ public class GameController {
                 String r2 = (String) box2.getSelectedItem();
                 current.addResource(r1);
                 current.addResource(r2);
-                addLog(current.getName() + " took 1 " + r1 + " and 1 " + r2 + " (Year of Plenty).");
                 dialog.dispose();
                 view.setCurrentPlayerIndex(currentPlayerIndex);
                 view.updateSidebar();
@@ -1081,7 +1027,6 @@ public class GameController {
                     }
                     total += count;
                 }
-                addLog(current.getName() + " monopolized " + type + " (took " + total + ").");
                 dialog.dispose();
                 view.setCurrentPlayerIndex(currentPlayerIndex);
                 view.updateSidebar();
@@ -1130,7 +1075,6 @@ public class GameController {
                 else if (give.equals(ResourceType.WHEAT)) current.deductResources(0, 0, 0, 4, 0);
                 else                                       current.deductResources(0, 0, 0, 0, 4);
                 current.addResource(get);
-                addLog(current.getName() + " traded 4 " + give + " for 1 " + get + " (bank).");
                 view.setCurrentPlayerIndex(currentPlayerIndex);
                 view.updateSidebar();
                 dialog.dispose();
@@ -1141,118 +1085,6 @@ public class GameController {
         dialog.pack();
         dialog.setLocationRelativeTo(frame);
         dialog.setVisible(true);
-    }
-
-    // player trade step 1: current player sets wat they offer nd wat they want
-    // spinners max out at wat each player actually has
-    private void openOfferTradeDialog() {
-        final Player current = players.get(currentPlayerIndex);
-        final Player other   = players.get(1 - currentPlayerIndex); // only 2 players
-
-        String[] names = {"Wood", "Brick", "Wool", "Wheat", "Ore"};
-        final JSpinner[] giveSpinners = new JSpinner[5];
-        final JSpinner[] getSpinners  = new JSpinner[5];
-
-        JPanel panel = new JPanel(new GridLayout(6, 3, 4, 4));
-        panel.add(new JLabel("Resource")); panel.add(new JLabel("You give")); panel.add(new JLabel("You want"));
-        for (int i = 0; i < 5; i++) {
-            int maxGive = getCountByIndex(current, i);
-            giveSpinners[i] = new JSpinner(new SpinnerNumberModel(0, 0, maxGive, 1));
-            getSpinners[i]  = new JSpinner(new SpinnerNumberModel(0, 0, 20, 1));
-            panel.add(new JLabel(names[i]));
-            panel.add(giveSpinners[i]);
-            panel.add(getSpinners[i]);
-        }
-
-        final JDialog offerDialog = new JDialog(frame, "Offer Trade to " + other.getName(), true);
-        offerDialog.setLayout(new BorderLayout(8, 8));
-        offerDialog.add(panel, BorderLayout.CENTER);
-
-        JButton send = new JButton("Send Offer");
-        send.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                offerDialog.dispose();
-                // hand it 2 other player 2 accept or decline
-                showReceiveTradeDialog(current, other, giveSpinners, getSpinners, names);
-            }
-        });
-        offerDialog.add(send, BorderLayout.SOUTH);
-        offerDialog.pack();
-        offerDialog.setLocationRelativeTo(frame);
-        offerDialog.setVisible(true);
-    }
-
-    // player trade step 2: other player sees full offer nd can accept or decline
-    // if accepted, transfer resorces both directions nd check affordability first
-    private void showReceiveTradeDialog(final Player giver, final Player receiver,
-                                        final JSpinner[] giveSpinners, final JSpinner[] getSpinners,
-                                        final String[] names) {
-        // build summary of whats being offered so receiver knows wat they r agreeing 2
-        StringBuilder sb = new StringBuilder("<html>" + giver.getName() + " offers:<br>");
-        for (int i = 0; i < 5; i++) {
-            int g = (Integer) giveSpinners[i].getValue();
-            if (g > 0) sb.append("  Give " + g + " " + names[i] + "<br>");
-        }
-        sb.append("In exchange for:<br>");
-        for (int i = 0; i < 5; i++) {
-            int w = (Integer) getSpinners[i].getValue();
-            if (w > 0) sb.append("  Get " + w + " " + names[i] + "<br>");
-        }
-        sb.append("</html>");
-
-        final JDialog recDialog = new JDialog(frame, receiver.getName() + ": trade offer", true);
-        recDialog.setLayout(new BorderLayout(8, 8));
-        recDialog.add(new JLabel(sb.toString()), BorderLayout.CENTER);
-
-        // single-element boolean array trick so inner class can modify it
-        final boolean[] accepted = {false};
-
-        JPanel btns = new JPanel();
-        JButton acceptBtn  = new JButton("Accept");
-        JButton declineBtn = new JButton("Decline");
-        acceptBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                accepted[0] = true;
-                recDialog.dispose();
-            }
-        });
-        declineBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                recDialog.dispose();
-            }
-        });
-        btns.add(acceptBtn);
-        btns.add(declineBtn);
-        recDialog.add(btns, BorderLayout.SOUTH);
-        recDialog.pack();
-        recDialog.setLocationRelativeTo(frame);
-        recDialog.setVisible(true); // blocks until accept or decline
-
-        if (accepted[0]) {
-            // double check receiver can actually pay wat they agreed 2
-            for (int i = 0; i < 5; i++) {
-                int need = (Integer) getSpinners[i].getValue();
-                if (getCountByIndex(receiver, i) < need) {
-                    updateStatus(receiver.getName() + " doesn't have enough resources.");
-                    addLog("Trade failed: " + receiver.getName() + " lacks resources.");
-                    return;
-                }
-            }
-            // execute: move resorces both ways
-            for (int i = 0; i < 5; i++) {
-                int give = (Integer) giveSpinners[i].getValue();
-                int get  = (Integer) getSpinners[i].getValue();
-                for (int k = 0; k < give; k++) { giver.removeResource(indexToResource(i)); receiver.addResource(indexToResource(i)); }
-                for (int k = 0; k < get;  k++) { receiver.removeResource(indexToResource(i)); giver.addResource(indexToResource(i)); }
-            }
-            addLog(giver.getName() + " and " + receiver.getName() + " completed a trade.");
-            updateStatus("Trade accepted!");
-            view.setCurrentPlayerIndex(currentPlayerIndex);
-            view.updateSidebar();
-        } else {
-            addLog(receiver.getName() + " declined the trade.");
-            updateStatus("Trade declined.");
-        }
     }
 
     // ---- LARGEST ARMY ----
@@ -1268,7 +1100,6 @@ public class GameController {
             if (largestArmyHolder != -1) players.get(largestArmyHolder).setHoldsLargestArmy(false);
             current.setHoldsLargestArmy(true);
             largestArmyHolder = currentPlayerIndex;
-            addLog(current.getName() + " has Largest Army! (+2 VP)");
             view.setCurrentPlayerIndex(currentPlayerIndex);
             view.updateSidebar();
             checkWinAndHandle(); // 2 extra vp might win game
@@ -1301,7 +1132,6 @@ public class GameController {
             if (longestRoadHolder != -1) players.get(longestRoadHolder).setHoldsLongestRoad(false);
             players.get(bestIdx).setHoldsLongestRoad(true);
             longestRoadHolder = bestIdx;
-            addLog(players.get(bestIdx).getName() + " has Longest Road! (" + bestLen + " segments, +2 VP)");
             view.setCurrentPlayerIndex(currentPlayerIndex);
             view.updateSidebar();
             checkWinAndHandle();
@@ -1373,7 +1203,6 @@ public class GameController {
             if (p.getVictoryPoints() >= 10) { winner = p; break; }
         }
 
-        addLog(winner.getName() + " wins with " + winner.getVictoryPoints() + " VP!");
         showWinDialog(winner);
     }
 
@@ -1439,7 +1268,6 @@ public class GameController {
         dialog.pack();
         dialog.setLocationRelativeTo(frame);
         dialog.setVisible(true); // blocks until n cards discarded
-        addLog(p.getName() + " discarded " + n + " cards.");
     }
 
     // ---- INFO DIALOG ----
@@ -1484,7 +1312,6 @@ public class GameController {
         bot.addSettlement(s);
         if (setupTurnIndex >= players.size()) distributeSetupResources(placed);
         setupPlacingRoad = true;
-        addLog("Bot placed a settlement.");
         updateStatus("Bot placed a settlement.");
         view.setCurrentPlayerIndex(currentPlayerIndex);
         view.updateSidebar();
@@ -1569,7 +1396,6 @@ public class GameController {
                 if (b instanceof Settlement) {
                     bot.deductResources(0, 0, 0, 2, 3);
                     ((Settlement) b).upgrade();
-                    addLog("Bot upgraded to a city.");
                     checkWinAndHandle();
                     view.setCurrentPlayerIndex(currentPlayerIndex);
                     view.updateSidebar();
@@ -1583,7 +1409,6 @@ public class GameController {
         if (bot.canAfford(1, 1, 1, 1, 0)) {
             Vertex spot = findBotSettlementSpot(bot);
             if (spot != null && placeSettlement(bot, spot)) {
-                addLog("Bot built a settlement.");
                 checkLongestRoad();
                 checkWinAndHandle();
                 view.setCurrentPlayerIndex(currentPlayerIndex);
@@ -1635,11 +1460,9 @@ public class GameController {
         best.setHasRobber(true);
         Player victim = findVictim(best, bot);
         if (victim != null) {
-            String stolen = stealRandom(victim, bot);
-            if (stolen != null) addLog("Bot stole 1 " + stolen + " from " + victim.getName());
+            stealRandom(victim, bot);
         }
         movingRobber = false;
-        addLog("Bot moved the robber.");
         view.repaint();
     }
 
@@ -1666,7 +1489,6 @@ public class GameController {
                     Road road = new Road(bot, v1, v2);
                     board.getRoads().add(road);
                     bot.getRoads().add(road);
-                    addLog("Bot built a road.");
                     checkLongestRoad();
                     return true;
                 }
@@ -1693,30 +1515,6 @@ public class GameController {
         if (type.equals(ResourceType.WHEAT)) return p.getWheat();
         if (type.equals(ResourceType.ORE))   return p.getOre();
         return 0;
-    }
-
-    // get resorce count by 0-4 index (wood=0 brick=1 wool=2 wheat=3 ore=4)
-    // used in trade dialogs where we loop over all 5 resorces by index
-    private int getCountByIndex(Player p, int idx) {
-        if (idx == 0) return p.getWood();
-        if (idx == 1) return p.getBrick();
-        if (idx == 2) return p.getWool();
-        if (idx == 3) return p.getWheat();
-        return p.getOre();
-    }
-
-    // convert 0-4 index 2 ResourceType string constanst
-    private String indexToResource(int idx) {
-        if (idx == 0) return ResourceType.WOOD;
-        if (idx == 1) return ResourceType.BRICK;
-        if (idx == 2) return ResourceType.WOOL;
-        if (idx == 3) return ResourceType.WHEAT;
-        return ResourceType.ORE;
-    }
-
-    // apend 2 game log panel on left
-    private void addLog(String msg) {
-        view.addLog(msg);
     }
 
     // update both botom status label nd message drawn on board

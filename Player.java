@@ -217,7 +217,8 @@ public class Player {
     }
 
     // getters (no setters, all mutation goes thru methods above)
-    public String getName()               { return name; }
+    public String getName()                { return name; }
+    public void setName(String n)          { name = n; }
     public int getWood()                  { return wood; }
     public int getBrick()                 { return brick; }
     public int getWool()                  { return wool; }
