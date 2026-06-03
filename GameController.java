@@ -26,8 +26,9 @@ public class GameController {
     // true when somebody hits 10vp, locks everything
     private boolean gameOver;
 
-    // snake order 4 2-player setup: P1 P2 P2 P1
-    private static final int[] SETUP_ORDER = {0, 1, 1, 0};
+    // setup order built dynamically based on player count (snake draft)
+    // 2p: 0 1 1 0   3p: 0 1 2 2 1 0   4p: 0 1 2 3 3 2 1 0
+    private int[] setupOrder;
     private boolean inSetupPhase;
     private int setupTurnIndex;
     private boolean setupPlacingRoad; // true after settlment placed waiting 4 road click
@@ -110,11 +111,48 @@ public class GameController {
         lastDie2 = 0;
         botEnabled = false;
         botThinking = false;
+        setupOrder = new int[]{0, 1, 1, 0}; // placeholder, rebuilt in showIntro
         view = new GameView(board, players);
     }
 
     // show star wars style intro crawl first then game
+    // dialogs run BEFORE frame is built so sidebar gets correct player count
     public void showIntro() {
+        // mode dialog first (null parent = screen center, fine before frame exists)
+        Object[] modeOptions = {"vs Bot", "Player vs Player"};
+        int modeChoice = JOptionPane.showOptionDialog(null,
+            "Choose game mode:",
+            "Settlers of Catan",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.PLAIN_MESSAGE,
+            null, modeOptions, modeOptions[0]);
+
+        if (modeChoice != 1) {
+            // bot mode: 2 players
+            botEnabled = true;
+            players.get(1).setName("Bot");
+        } else {
+            // pvp: ask how many players (2 3 or 4)
+            Object[] countOptions = {"2", "3", "4"};
+            int countChoice = JOptionPane.showOptionDialog(null,
+                "How many players?",
+                "Settlers of Catan",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null, countOptions, countOptions[0]);
+            int numPlayers = 2; // default if dialog closed
+            if (countChoice == 1) numPlayers = 3;
+            else if (countChoice == 2) numPlayers = 4;
+            // add extra players if needed (constructor already made P1 and P2)
+            while (players.size() < numPlayers) {
+                players.add(new Player("Player " + (players.size() + 1)));
+            }
+        }
+
+        // build setup order now that player count is locked in
+        setupOrder = buildSetupOrder(players.size());
+
+        // build frame after player count is known so sidebar has right number of labels
         frame = new JFrame("Settlers of Catan");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
@@ -124,11 +162,10 @@ public class GameController {
         IntroCrawlPanel intro = new IntroCrawlPanel(this);
         cardPanel.add(intro, "intro");
 
-        // build game panel ahead of time so theres no delay when intro ends
+        // sidebar is built inside buildGamePanel, so players list must be final by here
         JPanel gamePanel = buildGamePanel();
         cardPanel.add(gamePanel, "game");
 
-        // black transition panel shown between players (pass-the-device moment)
         JPanel transPanel = buildTransitionPanel();
         cardPanel.add(transPanel, "transition");
 
@@ -137,21 +174,17 @@ public class GameController {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
 
-        // mode dialog shown after frame is up so it centers on the game window
-        Object[] options = {"vs Bot", "Player vs Player"};
-        int choice = JOptionPane.showOptionDialog(frame,
-            "Choose game mode:",
-            "Settlers of Catan",
-            JOptionPane.DEFAULT_OPTION,
-            JOptionPane.PLAIN_MESSAGE,
-            null, options, options[0]);
-        if (choice != 1) { // default to bot if dialog closed
-            botEnabled = true;
-            players.get(1).setName("Bot");
-        }
-
         cardLayout.show(cardPanel, "intro");
         intro.startCrawl();
+    }
+
+    // build snake draft setup order for n players
+    // forward pass 0..n-1 then reverse pass n-1..0
+    private int[] buildSetupOrder(int numPlayers) {
+        int[] order = new int[numPlayers * 2];
+        for (int i = 0; i < numPlayers; i++) order[i] = i;
+        for (int i = 0; i < numPlayers; i++) order[numPlayers + i] = numPlayers - 1 - i;
+        return order;
     }
 
     // called by IntroCrawlPanel when crawl finishes or player skips
@@ -160,7 +193,7 @@ public class GameController {
         inSetupPhase = true;
         setupTurnIndex = 0;
         setupPlacingRoad = false;
-        currentPlayerIndex = SETUP_ORDER[0]; // always starts with player 1
+        currentPlayerIndex = setupOrder[0]; // always 0, player 1 goes first
         rollButton.setEnabled(false);
         endTurnButton.setEnabled(false);
         setPostRollButtons(false); // nothing available until you roll
@@ -234,7 +267,8 @@ public class GameController {
         hasPlayedDevCard = false;
 
         String name = players.get(nextIndex).getName();
-        String prev = players.get((nextIndex + 1) % players.size()).getName();
+        // player who just finished = one step back from nextIndex
+        String prev = players.get((nextIndex - 1 + players.size()) % players.size()).getName();
         transitionLabel.setText(prev + " - look away!");
         transitionSubLabel.setText("Hand the computer to " + name + ". Starting in 3 seconds...");
         cardLayout.show(cardPanel, "transition");
@@ -406,7 +440,7 @@ public class GameController {
         checkLongestRoad(); // recalc now in case roads changed this turn
         int nextIndex = (currentPlayerIndex + 1) % players.size();
 
-        if (botEnabled && nextIndex == 1) {
+        if (botEnabled && players.size() == 2 && nextIndex == 1) {
             // bot skips transition screen
             currentPlayerIndex = nextIndex;
             hasRolled = false;
@@ -637,7 +671,7 @@ public class GameController {
     private void advanceSetupAfterRoad() {
         setupPlacingRoad = false;
         setupTurnIndex++;
-        if (setupTurnIndex >= SETUP_ORDER.length) {
+        if (setupTurnIndex >= setupOrder.length) {
             // setup done! player 1 always goes first
             inSetupPhase = false;
             currentPlayerIndex = 0;
@@ -645,7 +679,7 @@ public class GameController {
             updateStatus(players.get(0).getName() + "'s turn, roll the dice!");
         } else {
             // next player in snake order
-            currentPlayerIndex = SETUP_ORDER[setupTurnIndex];
+            currentPlayerIndex = setupOrder[setupTurnIndex];
             String turn = (setupTurnIndex < players.size()) ? "first" : "second";
             updateStatus(players.get(currentPlayerIndex).getName()
                        + ": place your " + turn + " settlement.");
