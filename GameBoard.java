@@ -53,21 +53,20 @@ public class GameBoard {
     }
 
     // builds the whole board layout
-    // pointy-top hexs, radius 60, fits on 700x620
-    // rows: 3-4-5-4-3
+    // pointy-top hexs, radius 65, rows: 3-4-5-4-3
     private void initBoard() {
-        // center px of each tile
+        // center px of each tile (col spacing 113, row spacing 98)
         int[][] centers = {
             // row 0
-            {246, 170}, {350, 170}, {454, 170},
+            {237, 154}, {350, 154}, {463, 154},
             // row 1
-            {194, 260}, {298, 260}, {402, 260}, {506, 260},
+            {181, 252}, {294, 252}, {407, 252}, {520, 252},
             // row 2 (middle)
-            {142, 350}, {246, 350}, {350, 350}, {454, 350}, {558, 350},
+            {124, 350}, {237, 350}, {350, 350}, {463, 350}, {576, 350},
             // row 3
-            {194, 440}, {298, 440}, {402, 440}, {506, 440},
+            {181, 448}, {294, 448}, {407, 448}, {520, 448},
             // row 4
-            {246, 530}, {350, 530}, {454, 530}
+            {237, 546}, {350, 546}, {463, 546}
         };
 
         // resource per tile
@@ -88,16 +87,16 @@ public class GameBoard {
              5,  6, 11
         };
 
-        // offset from center to each corner
+        // offset from center to each corner (radius 65)
         // top, upper-r, lower-r, bottom, lower-l, upper-l
-        // 52 = round(60 * sqrt(3)/2)
+        // 56 = round(65 * sqrt(3)/2), 33 = round(65 / 2)
         int[][] offsets = {
-            {  0, -60},
-            { 52, -30},
-            { 52,  30},
-            {  0,  60},
-            {-52,  30},
-            {-52, -30}
+            {  0, -65},
+            { 56, -33},
+            { 56,  33},
+            {  0,  65},
+            {-56,  33},
+            {-56, -33}
         };
 
         for (int i = 0; i < 19; i++) {
