@@ -81,11 +81,6 @@ public class GameController {
     private CardLayout cardLayout;
     private JPanel cardPanel;
 
-    public static void main(String[] args) {
-        GameController gc = new GameController();
-        gc.showIntro();
-    }
-
     // set up everything at 0/false, vsBot resolved in showIntro
     public GameController() {
         board = new GameBoard();
