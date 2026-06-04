@@ -4,8 +4,7 @@ import java.util.ArrayList;
 public class Vertex {
 
     // pixel pos`
-    private int x;
-    private int y;
+    private int x, y;
 
     // building here, null if empty
     private Building building;
@@ -23,6 +22,7 @@ public class Vertex {
 
     // nothing here?
     public boolean isEmpty() {
+
         return building == null;
     }
 

@@ -10,6 +10,7 @@ public abstract class Building {
     // sets owner + location
     public Building(Player owner, Vertex location) {
         this.owner = owner;
+
         this.location = location;
     }
 

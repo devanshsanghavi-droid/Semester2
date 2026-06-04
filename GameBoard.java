@@ -28,10 +28,11 @@ public class GameBoard {
     // 14 knight 2 road bldg 2 yop 2 mono 5 vp
     private void initDevDeck() {
         for (int i = 0; i < 14; i++) devDeck.add(DevCard.KNIGHT);
-        for (int i = 0; i < 2;  i++) devDeck.add(DevCard.ROAD_BUILDING);
-        for (int i = 0; i < 2;  i++) devDeck.add(DevCard.YEAR_OF_PLENTY);
-        for (int i = 0; i < 2;  i++) devDeck.add(DevCard.MONOPOLY);
-        for (int i = 0; i < 5;  i++) devDeck.add(DevCard.VICTORY_POINT);
+
+        for (int i = 0; i < 2; i++) devDeck.add(DevCard.ROAD_BUILDING);
+        for (int i = 0; i < 2; i++) devDeck.add(DevCard.YEAR_OF_PLENTY);
+        for (int i = 0; i < 2; i++) devDeck.add(DevCard.MONOPOLY);
+        for (int i = 0; i < 5; i++) devDeck.add(DevCard.VICTORY_POINT);
         // fisher-yates shuffle so order is randum every game
         for (int i = devDeck.size() - 1; i > 0; i--) {
             int j = (int)(Math.random() * (i + 1));
@@ -150,10 +151,9 @@ public class GameBoard {
     public ArrayList<Tile> getTilesByRoll(int roll) {
         ArrayList<Tile> result = new ArrayList<Tile>();
         for (Tile t : tiles) {
-            if (t.getDiceNumber() == roll) {
-                result.add(t);
-            }
+            if (t.getDiceNumber() == roll) result.add(t);
         }
+
         return result;
     }
 

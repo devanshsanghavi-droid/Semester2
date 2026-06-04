@@ -1,8 +1,7 @@
 // road segment between two vertices
 public class Road {
     private Player owner;
-    private Vertex v1;
-    private Vertex v2;
+    private Vertex v1, v2;
 
     public Road(Player owner, Vertex v1, Vertex v2) {
         this.owner = owner;

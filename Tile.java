@@ -34,14 +34,12 @@ public class Tile {
     // hand out resources to ppl w buildings on this tile
     // skip if robber or desert
     public void distribute(ArrayList<Player> players) {
-        if (hasRobber || resourceType.equals("DESERT")) {
+        if (hasRobber || resourceType.equals("DESERT"))
             return;
-        }
         for (Vertex v : vertices) {
             if (!v.isEmpty()) {
-                Building b = v.getBuilding();
+                Building b = v.getBuilding(); int amount = b.getVP();
                 // getVP() = 1 for settlement, 2 for city, clever reuse
-                int amount = b.getVP();
                 for (int i = 0; i < amount; i++) {
                     b.getOwner().addResource(resourceType);
                 }

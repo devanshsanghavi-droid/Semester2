@@ -11,8 +11,7 @@ class SetupHandler {
         this.gc = gc;
     }
 
-    // handles a board click during the setup phase
-    // routes 2 settlment placement or road placement depending on setupPlacingRoad flag
+    // handles a board click during the setup phase routes 2 settlment placement or road placement depending on setupPlacingRoad flag
     void handleSetupClick(int mouseX, int mouseY) {
         if (!gc.setupPlacingRoad) {
             handleSetupSettlement(mouseX, mouseY);
@@ -23,6 +22,7 @@ class SetupHandler {
             if (gc.roadFirstClick == null) {
                 gc.roadFirstClick = nearest;
                 gc.view.setHighlightedVertex(nearest);
+                gc.view.repaint();
                 gc.updateStatus("Click second vertex of road.");
             } else {
                 placeSetupRoad(gc.players.get(gc.currentPlayerIndex), gc.roadFirstClick, nearest);
@@ -49,6 +49,7 @@ class SetupHandler {
         // only give starting resorces 4 2nd settlment (setupTurnIndex >= 2 for 2 players)
         if (gc.setupTurnIndex >= gc.players.size()) distributeSetupResources(nearest);
         gc.setupPlacingRoad = true;
+        MusicPlayer.playSound("catan_sounds/catan_build_settlement.wav");
         String turn = (gc.setupTurnIndex < gc.players.size()) ? "first" : "second";
         gc.updateStatus(current.getName() + ": place your " + turn + " road.");
         gc.view.setCurrentPlayerIndex(gc.currentPlayerIndex);
@@ -60,14 +61,15 @@ class SetupHandler {
     // only called during setup 4 second settlment placement
     void distributeSetupResources(Vertex v) {
         Player current = gc.players.get(gc.currentPlayerIndex);
-        for (Tile t : v.getAdjacentTiles()) {
+        for (Tile t : v.getAdjacentTiles())
+        {
             if (!t.getResourceType().equals("DESERT")) {
                 current.addResource(t.getResourceType());
             }
         }
     }
 
-    // setup road: just checks shared edge, no cost no connectivity req
+    // setup roa just checks shared edge, no cost no connectivity req
     void placeSetupRoad(Player p, Vertex v1, Vertex v2) {
         if (!gc.sharesEdge(v1, v2)) {
             gc.updateStatus("Not a valid road edge."); return;
@@ -75,23 +77,24 @@ class SetupHandler {
         Road road = new Road(p, v1, v2);
         gc.board.getRoads().add(road);
         p.getRoads().add(road);
+        MusicPlayer.playSound("catan_sounds/catan_build_road.wav");
         advanceSetupAfterRoad();
         gc.view.repaint();
     }
 
-    // move to next step in setup order after road placed
+    //  to next step in setup order ter road placed
     // once all setup turns done, unlock roll btn nd start normal play
     void advanceSetupAfterRoad() {
         gc.setupPlacingRoad = false;
         gc.setupTurnIndex++;
         if (gc.setupTurnIndex >= gc.setupOrder.length) {
-            // setup done! player 1 always goes first
+            // setup doneplayer 1 always goes first
             gc.inSetupPhase = false;
             gc.currentPlayerIndex = 0;
             gc.rollButton.setEnabled(true);
             gc.updateStatus(gc.players.get(0).getName() + "'s turn, roll the dice!");
         } else {
-            // next player in snake order
+            // next player in snake 
             gc.currentPlayerIndex = gc.setupOrder[gc.setupTurnIndex];
             String turn = (gc.setupTurnIndex < gc.players.size()) ? "first" : "second";
             gc.updateStatus(gc.players.get(gc.currentPlayerIndex).getName()
@@ -101,7 +104,7 @@ class SetupHandler {
         gc.view.updateSidebar();
         gc.view.repaint();
 
-        // if its bots setup turn, auto-place after short delay
+    // if its bots setup turn, auto lace after short delay
         if (gc.botEnabled && gc.inSetupPhase && gc.currentPlayerIndex == 1) {
             gc.botThinking = true;
             Timer t = new Timer(700, new ActionListener() {

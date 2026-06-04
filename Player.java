@@ -45,7 +45,7 @@ public class Player {
     // true if player holds Longest Road card rn
     private boolean holdsLongestRoad;
 
-    // brand new player, nothing owned yet
+    // brand new player nothng owned yet just a bunch of stuff to track
     public Player(String name) {
         this.name = name;
         this.wood = 0;
@@ -73,31 +73,53 @@ public class Player {
     public boolean deductResources(int w, int br, int wl, int wh, int o) {
         if (wood < w || brick < br || wool < wl || wheat < wh || ore < o) return false;
         wood  -= w;
+
         brick -= br;
         wool  -= wl;
+
         wheat -= wh;
         ore   -= o;
+
         return true;
     }
 
     // take away 1 resorce, wont go below 0
     // used 4 robber steals and discrd
     public void removeResource(String type) {
-        if      (type.equals(ResourceType.WOOD))  { if (wood  > 0) wood--;  } // this might be the most beautiful code ive ever written
+        if      (type.equals(ResourceType.WOOD)) { if (wood  > 0) 
+            wood--;  
 
-        else if (type.equals(ResourceType.BRICK)) { if (brick > 0) brick--; }
-        else if (type.equals(ResourceType.WOOL))  { if (wool  > 0) wool--;  }
-        else if (type.equals(ResourceType.WHEAT)) { if (wheat > 0) wheat--; }
-        else if (type.equals(ResourceType.ORE))   { if (ore   > 0) ore--;   }
+        } 
+        else if (type.equals(ResourceType.BRICK)){ if (brick > 0) 
+            brick--;
+
+         }
+        else if (type.equals(ResourceType.WOOL)){ if (wool  > 0) 
+            wool--;
+
+         }
+        else if (type.equals(ResourceType.WHEAT)){ if (wheat > 0) 
+            wheat--;
+
+        }
+        else if (type.equals(ResourceType.ORE)){ if (ore   > 0) 
+            ore--;   
+
+        }
     }
-
-    // give player 1 resorce
+    // give recs
     public void addResource(String type) {
-        if      (type.equals(ResourceType.WOOD))  wood++;
-        else if (type.equals(ResourceType.BRICK)) brick++;
-        else if (type.equals(ResourceType.WOOL))  wool++;
-        else if (type.equals(ResourceType.WHEAT)) wheat++;
-        else if (type.equals(ResourceType.ORE))   ore++;
+        if      (type.equals(ResourceType.WOOD)) {
+            wood++;
+        } else if (type.equals(ResourceType.BRICK)) {
+            brick++;
+        } else if (type.equals(ResourceType.WOOL))  {
+            wool++;
+        } else if (type.equals(ResourceType.WHEAT)) {
+            wheat++;
+        } else if (type.equals(ResourceType.ORE))   {
+            ore++;
+        }
     }
 
     // add bldg and tick up victoryPoints by its vp value
@@ -135,7 +157,7 @@ public class Player {
         boughtThisTurn.add(type);
     }
 
-    // wipe bought-this-turn list at end of each turn
+    // wipe bought-thi-turn list at end of each turn
     public void clearBoughtThisTurn() {
         boughtThisTurn.clear();
     }
@@ -217,19 +239,47 @@ public class Player {
         return count;
     }
 
-    // getters (no setters, all mutation goes thru methods above)
-    public String getName()                { return name; }
-    public void setName(String n)          { name = n; }
-    public int getWood()                  { return wood; }
-    public int getBrick()                 { return brick; }
-    public int getWool()                  { return wool; }
-    public int getWheat()                 { return wheat; }
-    public int getOre()                   { return ore; }
-    public int getKnightsPlayed()         { return knightsPlayed; }
-    public boolean isHoldsLargestArmy()   { return holdsLargestArmy; }
-    public boolean isHoldsLongestRoad()   { return holdsLongestRoad; }
-    public ArrayList<Building> getSettlements() { return settlements; }
-    public ArrayList<Road> getRoads()     { return roads; }
-    public ArrayList<String> getDevCards() { return devCards; }
-    public ArrayList<String> getBoughtThisTurn() { return boughtThisTurn; }
+    // getters (no setters, id ont like setterS (jk if we wanna change smthng it goes on from above)
+    public String getName(){ return name; 
+
+    }
+    public void setName(String n){ name = n; 
+
+    }
+    public int getWood(){ return wood; 
+
+    }
+    public int getBrick(){ return brick; 
+
+    }
+    public int getWool(){ return wool;
+
+     }
+    public int getWheat(){ return wheat; 
+
+    }
+    public int getOre(){ return ore; 
+
+    }
+    public int getKnightsPlayed(){ return knightsPlayed;
+
+     }
+    public boolean isHoldsLargestArmy(){ return holdsLargestArmy;
+
+     }
+    public boolean isHoldsLongestRoad(){ return holdsLongestRoad; 
+
+    }
+    public ArrayList<Building> getSettlements(){ return settlements; 
+
+    }
+    public ArrayList<Road> getRoads(){ return roads; 
+
+    }
+    public ArrayList<String> getDevCards(){ return devCards;
+
+     }
+    public ArrayList<String> getBoughtThisTurn(){ return boughtThisTurn; 
+
+    }
 }

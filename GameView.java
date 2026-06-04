@@ -111,6 +111,7 @@ public class GameView extends JPanel {
         g.setColor(Color.BLACK);
         g.drawPolygon(t.getXPoints(), t.getYPoints(), 6);
 
+
         // find center by averging the 6 corner coords
         int cx = 0, cy = 0;
         for (int x : t.getXPoints()) cx += x;
@@ -191,6 +192,7 @@ public class GameView extends JPanel {
         for (int i = 0; i < players.size(); i++) {
             if (players.get(i) == p) return PLAYER_COLORS[i % PLAYER_COLORS.length];
         }
+
         return Color.GRAY; // shuldnt happen but just in case
     }
 
@@ -210,7 +212,8 @@ public class GameView extends JPanel {
         sidebar.add(Box.createVerticalStrut(12));
 
         playerLabels = new JLabel[players.size()];
-        for (int i = 0; i < players.size(); i++) {
+        for (int i = 0; i < players.size(); i++)
+        {
             playerLabels[i] = new JLabel(buildPlayerText(i, i == currentPlayerIndex));
             playerLabels[i].setForeground(PLAYER_COLORS[i % PLAYER_COLORS.length]);
             playerLabels[i].setFont(new Font("Monospaced", Font.PLAIN, 14));

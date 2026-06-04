@@ -13,8 +13,7 @@ public class Settlement extends Building {
     // turns this into a city on same spot
     // caller checks canAfford(0,0,0,2,3) first
     public void upgrade() {
-        Player owner = getOwner();
-        Vertex loc = getLocation();
+        Player owner = getOwner(); Vertex loc = getLocation();
         // rm settlement first
         owner.removeSettlement(this);
         // slap a city there

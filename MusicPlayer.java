@@ -28,4 +28,18 @@ public class MusicPlayer {
             clip.close();
         }
     }
+
+    // play a one-shot sound effect, doesnt loop, doesnt affect bg music
+    public static void playSound(String filename) {
+        try {
+            File f = new File(filename);
+            if (!f.exists()) return;
+            AudioInputStream audio = AudioSystem.getAudioInputStream(f);
+            Clip c = AudioSystem.getClip();
+            c.open(audio);
+            c.start();
+        } catch (Exception e) {
+            // sound is optional, dont crash if smth goes wrong
+        }
+    }
 }

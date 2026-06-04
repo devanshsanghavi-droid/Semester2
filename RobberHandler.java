@@ -28,10 +28,11 @@ class RobberHandler {
         }
         // cant put robber back where it already is
         if (closest.hasRobber()) {
-            gc.updateStatus("Robber is already there. Pick a different tile.");
-            return; // dont reset movingRobber, let them try again
+            gc.updateStatus("Robber is already there. Pick a different tile por favor.");
+            return; // dont reset movingRobber, let them try again lal
         }
         // move robber: clear old set new
+
         for (Tile t : gc.board.getTiles()) { if (t.hasRobber()) t.setHasRobber(false); }
         closest.setHasRobber(true);
 
@@ -42,6 +43,7 @@ class RobberHandler {
             stealRandom(victim, current);
         }
         gc.movingRobber = false;
+        MusicPlayer.playSound("catan_sounds/catan_robber_placed.wav");
         gc.updateStatus("Robber moved.");
         gc.view.setCurrentPlayerIndex(gc.currentPlayerIndex);
         gc.view.updateSidebar();
@@ -77,6 +79,7 @@ class RobberHandler {
                 return type;
             }
         }
+
         return null; // victim was broke, nothing 2 steal
     }
 

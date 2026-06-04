@@ -7,6 +7,7 @@ public class IntroCrawlPanel extends JPanel {
     private static final int LINE_SPACING = 36;
     private static final String[] LINES = {
         "SETTLERS OF CATAN",
+        "By Devansh Sanghavi, APCS A, 2026 ",
         "",
         "HOW TO PLAY",
         "",
@@ -28,6 +29,7 @@ public class IntroCrawlPanel extends JPanel {
         "WINNING",
         "The first player to reach 10 Victory Points wins the game.",
         "",
+        "Click the question mark on the bottom row for help during game or read the readme",
         "",
         "Press any key to skip..."
     };
@@ -70,13 +72,14 @@ public class IntroCrawlPanel extends JPanel {
         requestFocusInWindow();
     }
 
-    @Override
+    // overide here idk?
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
         g.setFont(new Font("Monospaced", Font.BOLD, 18));
 
-        for (int i = 0; i < LINES.length; i++) {
+        for (int i = 0; i < LINES.length; i++)
+        {
             String line = LINES[i];
             if (line.isEmpty()) continue;
 
@@ -92,8 +95,8 @@ public class IntroCrawlPanel extends JPanel {
                 g.setFont(new Font("Monospaced", Font.BOLD, 18));
                 g.setColor(new Color(255, 215, 0));
             } else {
-                g.setFont(new Font("Monospaced", Font.PLAIN, 16));
-                g.setColor(new Color(230, 200, 100));
+            g.setFont(new Font("Monospaced", Font.PLAIN, 16));
+            g.setColor(new Color(230, 200, 100));
             }
 
             FontMetrics fm = g.getFontMetrics();
