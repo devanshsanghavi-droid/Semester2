@@ -9,16 +9,16 @@ import java.util.ArrayList;
 public class GameController {
 
     // board holds tiles vertices roads dev deck
-    private GameBoard board;
+    GameBoard board;
 
     // both players, index 0 = human index 1 = bot
-    private ArrayList<Player> players;
+    ArrayList<Player> players;
 
     // the drawing panel in center
-    private GameView view;
+    GameView view;
 
     // index into players[], whos turn it is
-    private int currentPlayerIndex;
+    int currentPlayerIndex;
 
     // true after roll, reset at end of turn
     private boolean hasRolled;
@@ -28,20 +28,20 @@ public class GameController {
 
     // setup order built dynamically based on player count (snake draft)
     // 2p: 0 1 1 0   3p: 0 1 2 2 1 0   4p: 0 1 2 3 3 2 1 0
-    private int[] setupOrder;
-    private boolean inSetupPhase;
-    private int setupTurnIndex;
-    private boolean setupPlacingRoad; // true after settlment placed waiting 4 road click
+    int[] setupOrder;
+    boolean inSetupPhase;
+    int setupTurnIndex;
+    boolean setupPlacingRoad; // true after settlment placed waiting 4 road click
 
     // two-click road placement: store first click wait 4 second
     private boolean placingRoad;
-    private Vertex roadFirstClick;
+    Vertex roadFirstClick;
 
     // true while player is clicking which settlment 2 upgrd
     private boolean buildingCity;
 
     // true while player needs 2 click tile 4 robber (after 7 or knight)
-    private boolean movingRobber;
+    boolean movingRobber;
 
     // dev card play state
     private boolean hasPlayedDevCard;   // only 1 card per turn
@@ -57,13 +57,13 @@ public class GameController {
     private int lastDie2;
 
     // true if player 2 is a bot
-    private boolean botEnabled;
+    boolean botEnabled;
     // true while bot is acting, blocks human mouse clicks
-    private boolean botThinking;
+    boolean botThinking;
 
     // buttons stored as fields so we can enable/disable from anywhere
     // rule: only Roll Dice active before roll, all others active after roll
-    private JButton rollButton;
+    JButton rollButton;
     private JButton endTurnButton;
     private JButton buildRoadButton;
     private JButton buildCityButton;
@@ -77,9 +77,13 @@ public class GameController {
     private JLabel transitionSubLabel;
 
     // frame + cardlayout 4 intro -> game -> transition panels
-    private JFrame frame;
+    JFrame frame;
     private CardLayout cardLayout;
     private JPanel cardPanel;
+
+    // helpers split out 2 keep this file shorter
+    private RobberHandler robber;
+    private SetupHandler setup;
 
     // set up everything at 0/false, vsBot resolved in showIntro
     public GameController() {
@@ -108,6 +112,8 @@ public class GameController {
         botThinking = false;
         setupOrder = new int[]{0, 1, 1, 0}; // placeholder, rebuilt in showIntro
         view = new GameView(board, players);
+        robber = new RobberHandler(this);
+        setup  = new SetupHandler(this);
     }
 
     // show star wars style intro crawl first then game
@@ -416,7 +422,7 @@ public class GameController {
             // anyone w more than 7 cards has 2 discard half (rounded down)
             for (Player p : players) {
                 int total = p.getWood() + p.getBrick() + p.getWool() + p.getWheat() + p.getOre();
-                if (total > 7) showDiscardDialog(p, total / 2);
+                if (total > 7) robber.showDiscardDialog(p, total / 2);
             }
             movingRobber = true;
             updateStatus(rollMsg + ", move the robber!");
@@ -472,59 +478,10 @@ public class GameController {
         int mouseY = rawY - view.getBoardOffsetY();
 
         // robber always takes priority over everything else
-        if (movingRobber) {
-            // find hex closest 2 where they clicked
-            Tile closest = null;
-            int minDist = Integer.MAX_VALUE;
-            for (Tile t : board.getTiles()) {
-                int[] xp = t.getXPoints(), yp = t.getYPoints();
-                int cx = 0, cy = 0;
-                for (int i = 0; i < 6; i++) { cx += xp[i]; cy += yp[i]; }
-                cx /= 6; cy /= 6; // avg corners 2 get center
-                int dist = (cx - mouseX) * (cx - mouseX) + (cy - mouseY) * (cy - mouseY);
-                if (dist < minDist) { minDist = dist; closest = t; }
-            }
-            // cant put robber back where it already is
-            if (closest.hasRobber()) {
-                updateStatus("Robber is already there. Pick a different tile.");
-                return; // dont reset movingRobber, let them try again
-            }
-            // move robber: clear old set new
-            for (Tile t : board.getTiles()) { if (t.hasRobber()) t.setHasRobber(false); }
-            closest.setHasRobber(true);
-
-            // steal random resorce from first opponent found on that tile
-            Player current = players.get(currentPlayerIndex);
-            Player victim = findVictim(closest, current);
-            if (victim != null) {
-                stealRandom(victim, current);
-            }
-            movingRobber = false;
-            updateStatus("Robber moved.");
-            view.setCurrentPlayerIndex(currentPlayerIndex);
-            view.updateSidebar();
-            view.repaint();
-            return;
-        }
+        if (movingRobber) { robber.handleRobberClick(mouseX, mouseY); return; }
 
         // setup phase: free settlments nd roads in snake order
-        if (inSetupPhase) {
-            if (!setupPlacingRoad) {
-                handleSetupSettlement(mouseX, mouseY);
-            } else {
-                // two-click road placement during setup (free, just edge check)
-                Vertex nearest = findNearestVertex(mouseX, mouseY);
-                if (nearest == null) return;
-                if (roadFirstClick == null) {
-                    roadFirstClick = nearest;
-                    updateStatus("Click second vertex of road.");
-                } else {
-                    placeSetupRoad(players.get(currentPlayerIndex), roadFirstClick, nearest);
-                    roadFirstClick = null;
-                }
-            }
-            return;
-        }
+        if (inSetupPhase) { setup.handleSetupClick(mouseX, mouseY); return; }
 
         // road placement mode: active after clicking Build Road or playing road bldg card
         if (placingRoad) {
@@ -532,6 +489,7 @@ public class GameController {
             if (nearest == null) return;
             if (roadFirstClick == null) {
                 roadFirstClick = nearest;
+                view.setHighlightedVertex(nearest);
                 updateStatus("Click second vertex of road.");
             } else {
                 // road bldg card = free road, normal = paid road
@@ -542,6 +500,7 @@ public class GameController {
                 }
                 placingRoad = false;
                 roadFirstClick = null;
+                view.setHighlightedVertex(null);
             }
             return;
         }
@@ -601,7 +560,7 @@ public class GameController {
 
     // find vertex closest 2 click within 20px (20^2 = 400 squared dist)
     // returns null if nothing close enuf
-    private Vertex findNearestVertex(int mouseX, int mouseY) {
+    Vertex findNearestVertex(int mouseX, int mouseY) {
         Vertex best = null;
         int minDist = Integer.MAX_VALUE;
         for (Vertex v : board.getVertices()) {
@@ -613,89 +572,7 @@ public class GameController {
     }
 
     // ---- PLACEMENT HELPERS ----
-
-    // setup settlment: free, no connectivity check, just distance rule
-    private void handleSetupSettlement(int mouseX, int mouseY) {
-        Vertex nearest = findNearestVertex(mouseX, mouseY);
-        if (nearest == null) return;
-        Player current = players.get(currentPlayerIndex);
-        if (!nearest.isEmpty()) {
-            updateStatus("That spot is taken."); view.repaint(); return;
-        }
-        if (!isValidPlacement(nearest)) {
-            updateStatus("Too close to another settlement."); view.repaint(); return;
-        }
-        Settlement s = new Settlement(current, nearest);
-        nearest.placeBuilding(s);
-        current.addSettlement(s);
-        // only give starting resorces 4 2nd settlment (setupTurnIndex >= 2 for 2 players)
-        if (setupTurnIndex >= players.size()) distributeSetupResources(nearest);
-        setupPlacingRoad = true;
-        String turn = (setupTurnIndex < players.size()) ? "first" : "second";
-        updateStatus(current.getName() + ": place your " + turn + " road.");
-        view.setCurrentPlayerIndex(currentPlayerIndex);
-        view.updateSidebar();
-        view.repaint();
-    }
-
-    // give current player 1 of each resorce from tiles touching vertex v
-    // only called during setup 4 second settlment placement
-    private void distributeSetupResources(Vertex v) {
-        Player current = players.get(currentPlayerIndex);
-        for (Tile t : v.getAdjacentTiles()) {
-            if (!t.getResourceType().equals("DESERT")) {
-                current.addResource(t.getResourceType());
-            }
-        }
-    }
-
-    // setup road: just checks shared edge, no cost no connectivity req
-    private void placeSetupRoad(Player p, Vertex v1, Vertex v2) {
-        if (!sharesEdge(v1, v2)) {
-            updateStatus("Not a valid road edge."); return;
-        }
-        Road road = new Road(p, v1, v2);
-        board.getRoads().add(road);
-        p.getRoads().add(road);
-        advanceSetupAfterRoad();
-        view.repaint();
-    }
-
-    // move to next step in setup order after road placed
-    // once all 4 setup turns done, unlock roll btn nd start normal play
-    private void advanceSetupAfterRoad() {
-        setupPlacingRoad = false;
-        setupTurnIndex++;
-        if (setupTurnIndex >= setupOrder.length) {
-            // setup done! player 1 always goes first
-            inSetupPhase = false;
-            currentPlayerIndex = 0;
-            rollButton.setEnabled(true);
-            updateStatus(players.get(0).getName() + "'s turn, roll the dice!");
-        } else {
-            // next player in snake order
-            currentPlayerIndex = setupOrder[setupTurnIndex];
-            String turn = (setupTurnIndex < players.size()) ? "first" : "second";
-            updateStatus(players.get(currentPlayerIndex).getName()
-                       + ": place your " + turn + " settlement.");
-        }
-        view.setCurrentPlayerIndex(currentPlayerIndex);
-        view.updateSidebar();
-        view.repaint();
-
-        // if its bots setup turn, auto-place after short delay
-        if (botEnabled && inSetupPhase && currentPlayerIndex == 1) {
-            botThinking = true;
-            Timer t = new Timer(700, new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    ((Timer) e.getSource()).stop();
-                    botSetupSettlement();
-                }
-            });
-            t.setRepeats(false);
-            t.start();
-        }
-    }
+    // setup helpers moved 2 SetupHandler.java
 
     // paid settlment placement: distance rule + connectivity + cost
     // returns false if any check fails (caller handles error msg)
@@ -778,7 +655,7 @@ public class GameController {
     // ---- VALIDATION ----
 
     // distance rule: none of adjacent corners on any shared tile can have bldg
-    private boolean isValidPlacement(Vertex v) {
+    boolean isValidPlacement(Vertex v) {
         for (Tile t : v.getAdjacentTiles()) {
             Vertex[] corners = t.getVertices();
             for (int i = 0; i < 6; i++) {
@@ -795,7 +672,7 @@ public class GameController {
 
     // true if v1 and v2 r adjacent (diff 1 or 5 in index) on any shared tile
     // diff of 5 handles wrap-around case (index 0 and 5 r neighbors)
-    private boolean sharesEdge(Vertex v1, Vertex v2) {
+    boolean sharesEdge(Vertex v1, Vertex v2) {
         for (Tile t : board.getTiles()) {
             Vertex[] corners = t.getVertices();
             int i1 = -1, i2 = -1;
@@ -812,7 +689,7 @@ public class GameController {
     }
 
     // true if road already connects v1 and v2 in either direction
-    private boolean isDuplicateRoad(Vertex v1, Vertex v2) {
+    boolean isDuplicateRoad(Vertex v1, Vertex v2) {
         for (Road r : board.getRoads()) {
             if ((r.getV1() == v1 && r.getV2() == v2) || (r.getV1() == v2 && r.getV2() == v1)) {
                 return true;
@@ -854,38 +731,7 @@ public class GameController {
     }
 
     // ---- ROBBER HELPERS ----
-
-    // find first opponent player w bldg on any corner of tile t
-    // returns null if no opponents r on that tile (no stealing happens)
-    private Player findVictim(Tile t, Player attacker) {
-        Vertex[] verts = t.getVertices();
-        for (Player p : players) {
-            if (p == attacker) continue;
-            for (Building b : p.getSettlements()) {
-                for (Vertex tv : verts) {
-                    if (tv == b.getLocation()) return p;
-                }
-            }
-        }
-        return null;
-    }
-
-    // steal one randum resorce from victim nd give 2 thief
-    // tries up 2 10 randum picks in case first few hit empty types
-    // returns type stolen, or null if victim had nothing
-    private String stealRandom(Player victim, Player thief) {
-        String[] types = {ResourceType.WOOD, ResourceType.BRICK,
-                          ResourceType.WOOL, ResourceType.WHEAT, ResourceType.ORE};
-        for (int attempt = 0; attempt < 10; attempt++) {
-            String type = types[(int)(Math.random() * 5)];
-            if (getCount(victim, type) > 0) {
-                victim.removeResource(type);
-                thief.addResource(type);
-                return type;
-            }
-        }
-        return null; // victim was broke, nothing 2 steal
-    }
+    // robber logic moved 2 RobberHandler.java
 
     // ---- DEV CARDS ----
 
@@ -1263,41 +1109,7 @@ public class GameController {
     }
 
     // ---- DISCARD DIALOG ----
-
-    // force player p 2 discard n cards (called when someone has >7 on a 7 roll)
-    // shows one btn per resorce type they own, auto-closes when enuf discarded
-    private void showDiscardDialog(final Player p, final int n) {
-        final JDialog dialog = new JDialog(frame, p.getName() + " must discard " + n + " cards", true);
-        dialog.setLayout(new FlowLayout());
-
-        final String[] types  = {ResourceType.WOOD, ResourceType.BRICK,
-                                  ResourceType.WOOL, ResourceType.WHEAT, ResourceType.ORE};
-        final String[] labels = {"Wood", "Brick", "Wool", "Wheat", "Ore"};
-        final int[] discarded = {0}; // array so inner class can modify it
-        final JButton[] buttons = new JButton[5];
-
-        for (int i = 0; i < 5; i++) {
-            if (getCount(p, types[i]) > 0) {
-                final int idx = i;
-                buttons[i] = new JButton(labels[i] + " (" + getCount(p, types[i]) + ")");
-                buttons[i].addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        p.removeResource(types[idx]);
-                        discarded[0]++;
-                        int rem = getCount(p, types[idx]);
-                        buttons[idx].setText(labels[idx] + " (" + rem + ")"); // update count on btn
-                        if (rem == 0) buttons[idx].setEnabled(false); // grey out when depleted
-                        if (discarded[0] >= n) dialog.dispose(); // done!
-                    }
-                });
-                dialog.add(buttons[i]);
-            }
-        }
-
-        dialog.pack();
-        dialog.setLocationRelativeTo(frame);
-        dialog.setVisible(true); // blocks until n cards discarded
-    }
+    // discard dialog moved 2 RobberHandler.java
 
     // ---- INFO DIALOG ----
 
@@ -1321,7 +1133,7 @@ public class GameController {
     // ---- BOT ----
 
     // bot setup: pick vertex w most adjacent non-desert tiles, place free settlment
-    private void botSetupSettlement() {
+    void botSetupSettlement() {
         Player bot = players.get(currentPlayerIndex);
         Vertex best = null;
         int bestScore = -1;
@@ -1339,7 +1151,7 @@ public class GameController {
         Settlement s = new Settlement(bot, placed);
         placed.placeBuilding(s);
         bot.addSettlement(s);
-        if (setupTurnIndex >= players.size()) distributeSetupResources(placed);
+        if (setupTurnIndex >= players.size()) setup.distributeSetupResources(placed);
         setupPlacingRoad = true;
         updateStatus("Bot placed a settlement.");
         view.setCurrentPlayerIndex(currentPlayerIndex);
@@ -1366,13 +1178,13 @@ public class GameController {
                 if (corners[i] == settlementVertex) {
                     Vertex other = corners[(i + 1) % 6];
                     if (!isDuplicateRoad(settlementVertex, other)) {
-                        placeSetupRoad(bot, settlementVertex, other);
+                        setup.placeSetupRoad(bot, settlementVertex, other);
                         botThinking = false;
                         return;
                     }
                     other = corners[(i + 5) % 6];
                     if (!isDuplicateRoad(settlementVertex, other)) {
-                        placeSetupRoad(bot, settlementVertex, other);
+                        setup.placeSetupRoad(bot, settlementVertex, other);
                         botThinking = false;
                         return;
                     }
@@ -1380,7 +1192,7 @@ public class GameController {
             }
         }
         // no road found, just advance anyway
-        advanceSetupAfterRoad();
+        setup.advanceSetupAfterRoad();
         botThinking = false;
     }
 
@@ -1487,9 +1299,9 @@ public class GameController {
         }
         for (Tile t : board.getTiles()) { if (t.hasRobber()) t.setHasRobber(false); }
         best.setHasRobber(true);
-        Player victim = findVictim(best, bot);
+        Player victim = robber.findVictim(best, bot);
         if (victim != null) {
-            stealRandom(victim, bot);
+            robber.stealRandom(victim, bot);
         }
         movingRobber = false;
         view.repaint();
@@ -1537,7 +1349,7 @@ public class GameController {
     }
 
     // get resorce count by type string (used in several dialogs)
-    private int getCount(Player p, String type) {
+    int getCount(Player p, String type) {
         if (type.equals(ResourceType.WOOD))  return p.getWood();
         if (type.equals(ResourceType.BRICK)) return p.getBrick();
         if (type.equals(ResourceType.WOOL))  return p.getWool();
@@ -1547,7 +1359,7 @@ public class GameController {
     }
 
     // update both botom status label nd message drawn on board
-    private void updateStatus(String msg) {
+    void updateStatus(String msg) {
         if (statusLabel != null) statusLabel.setText(msg);
         view.setMessage(msg);
     }

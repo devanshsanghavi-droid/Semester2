@@ -26,6 +26,8 @@ public class GameView extends JPanel {
     private int boardOffsetX = 0;
     private int boardOffsetY = 0;
 
+    private Vertex highlightedVertex = null;
+
     // player colors: bright so they pop against any tile color
     private static final Color[] PLAYER_COLORS = {
         new Color(30, 144, 255),   // dodger blue
@@ -138,10 +140,15 @@ public class GameView extends JPanel {
     // white outline drawn 1st so pieces contrast against any tile color
     private void drawVertex(Graphics g, Vertex v) {
         if (v.isEmpty()) {
-            g.setColor(new Color(255, 255, 255, 60));
-            g.fillOval(v.getX() - 5, v.getY() - 5, 10, 10);
-            g.setColor(new Color(255, 255, 255, 120));
-            g.drawOval(v.getX() - 5, v.getY() - 5, 10, 10);
+            if (v == highlightedVertex) {
+                g.setColor(Color.BLACK);
+                g.fillOval(v.getX() - 5, v.getY() - 5, 10, 10);
+            } else {
+                g.setColor(new Color(255, 255, 255, 60));
+                g.fillOval(v.getX() - 5, v.getY() - 5, 10, 10);
+                g.setColor(new Color(255, 255, 255, 120));
+                g.drawOval(v.getX() - 5, v.getY() - 5, 10, 10);
+            }
         } else {
             Building b = v.getBuilding();
             Color c = getPlayerColor(b.getOwner());
@@ -282,6 +289,7 @@ public class GameView extends JPanel {
     }
 
     public void setMessage(String s) { message = s; }
+    public void setHighlightedVertex(Vertex v) { highlightedVertex = v; }
 
     // GameController reads these 2 convert raw mouse coords 2 board coords
     public int getBoardOffsetX() { return boardOffsetX; }

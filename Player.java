@@ -81,9 +81,10 @@ public class Player {
     }
 
     // take away 1 resorce, wont go below 0
-    // used 4 robber steals and discard
+    // used 4 robber steals and discrd
     public void removeResource(String type) {
-        if      (type.equals(ResourceType.WOOD))  { if (wood  > 0) wood--;  }
+        if      (type.equals(ResourceType.WOOD))  { if (wood  > 0) wood--;  } // this might be the most beautiful code ive ever written
+
         else if (type.equals(ResourceType.BRICK)) { if (brick > 0) brick--; }
         else if (type.equals(ResourceType.WOOL))  { if (wool  > 0) wool--;  }
         else if (type.equals(ResourceType.WHEAT)) { if (wheat > 0) wheat--; }
