@@ -23,7 +23,12 @@ class SetupHandler {
                 gc.roadFirstClick = nearest;
                 gc.view.setHighlightedVertex(nearest);
                 gc.view.repaint();
-                gc.updateStatus("Click second vertex of road.");
+                gc.updateStatus("Click second vertex of road. (click same vertex to deselect)");
+            } else if (nearest == gc.roadFirstClick) {
+                gc.roadFirstClick = null;
+                gc.view.setHighlightedVertex(null);
+                gc.view.repaint();
+                gc.updateStatus("Click first vertex of road.");
             } else {
                 placeSetupRoad(gc.players.get(gc.currentPlayerIndex), gc.roadFirstClick, nearest);
                 gc.roadFirstClick = null;

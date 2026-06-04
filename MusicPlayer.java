@@ -18,7 +18,7 @@ public class MusicPlayer {
             clip.loop(Clip.LOOP_CONTINUOUSLY);
             clip.start();
         } catch (Exception e) {
-            // music is optional, dont crazh if we fail
+            // music is optional, dont cradh if we fail
         }
     }
  

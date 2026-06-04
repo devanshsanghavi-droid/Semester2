@@ -1,4 +1,4 @@
-To play, either hit the play butto on main 
+To play, hit the play butto on main 
 
 This is a two player digital version of Settlers of Catan built in Java. One player plays against a bot. The game follows standard Catan rules and is played by passing the computer between turns.
 How to Run

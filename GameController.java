@@ -495,7 +495,12 @@ public class GameController {
                 roadFirstClick = nearest;
                 view.setHighlightedVertex(nearest);
                 view.repaint();
-                updateStatus("Click second vertex of road.");
+                updateStatus("Click second vertex of road. (click same vertex to deselect)");
+            } else if (nearest == roadFirstClick) {
+                roadFirstClick = null;
+                view.setHighlightedVertex(null);
+                view.repaint();
+                updateStatus("Click first vertex of road.");
             } else {
                 // road bldg card = free road, normal = paid road
                 if (roadBuildingActive) {
