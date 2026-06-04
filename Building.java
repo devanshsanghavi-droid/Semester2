@@ -17,6 +17,8 @@ public abstract class Building {
     // 1 for settlement, 2 for citysssssssss overridden by subclass
     public abstract int getVP();
 //
-    public Player getOwner() { return owner; }
+    public Player getOwner() {
+        return owner;
+    }
     public Vertex getLocation() { return location; }
 }

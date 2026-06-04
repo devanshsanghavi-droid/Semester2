@@ -9,5 +9,7 @@ public class VPBuilding extends Building {
     }
 
     // 1 vp same as settlment
-    public int getVP() { return 1; }
+    public int getVP() {
+        return 1;
+    }
 }

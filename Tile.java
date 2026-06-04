@@ -47,11 +47,21 @@ public class Tile {
         }
     }
 
-    public String getResourceType() { return resourceType; }
+    public String getResourceType() {
+        return resourceType;
+    }
     public int getDiceNumber() { return diceNumber; }
-    public boolean hasRobber() { return hasRobber; }
+    public boolean hasRobber() {
+
+        return hasRobber;
+    }
     public void setHasRobber(boolean r) { hasRobber = r; }
-    public Vertex[] getVertices() { return vertices; }
+    public Vertex[] getVertices() {
+        return vertices;
+    }
     public int[] getXPoints() { return xPoints; }
-    public int[] getYPoints() { return yPoints; }
+    public int[] getYPoints()
+    {
+        return yPoints;
+    }
 }

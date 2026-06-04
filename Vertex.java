@@ -41,7 +41,12 @@ public class Vertex {
         adjacentTiles.add(t);
     }
 
-    public int getX() { return x; }
+    public int getX() {
+        return x;
+    }
     public int getY() { return y; }
-    public ArrayList<Tile> getAdjacentTiles() { return adjacentTiles; }
+    public ArrayList<Tile> getAdjacentTiles()
+    {
+        return adjacentTiles;
+    }
 }

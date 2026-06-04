@@ -1188,5 +1188,7 @@ public class GameController {
         view.setMessage(msg);
     }
 
-    public void startGame() { showIntro(); }
+    public void startGame() {
+        showIntro();
+    }
 }

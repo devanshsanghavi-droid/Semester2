@@ -245,12 +245,12 @@ public class GameView extends JPanel {
         }
     }
 
-    // build html string 4 one players sidebar entry
-    // current player sees full resorce counts, others see "hidden"
+   // here, i explained it before, but i use this html thing that makes the text way way better, 
+    // in the code i just build a big html string with line breaks and stuff, and the JLabel renders it like a webpage basically, so i can do bold and colors and stuff super easily, its way better than trying to manually position multiple JLabels (lovely AI overview)
     // also shows vp dev card count roads/settlments/cities knights bonus card flags
     private String buildPlayerText(int i, boolean isCurrentPlayer) {
         Player p = players.get(i);
-        // show [Army] and [Road] tags if player holds those bonus cards
+        // show [Army] and [Roa] tags if player holds those bonus cards
         String armyTag = p.isHoldsLargestArmy() ? " [Army]" : "";
         String roadTag = p.isHoldsLongestRoad()  ? " [Road]"  : "";
 
@@ -280,9 +280,9 @@ public class GameView extends JPanel {
              + "</html>";
     }
 
-    // resorce color key 4 botom of sidebar
+    // resorce color key fr botom of sidebar
     private String buildLegend() {
-        return "<html><b>Resources</b><br>"
+        return "<html><b>Resources</b><br>"//again the html thing
              + "<font color='#227822'>&#9632;</font> Wood &nbsp;"
              + "<font color='#b44632'>&#9632;</font> Brick<br>"
              + "<font color='#82d264'>&#9632;</font> Wool &nbsp;"
@@ -291,10 +291,19 @@ public class GameView extends JPanel {
              + "<font color='#d2b982'>&#9632;</font> Desert</html>";
     }
 
-    public void setMessage(String s) { message = s; }
-    public void setHighlightedVertex(Vertex v) { highlightedVertex = v; }
+    public void setMessage(String s) {
+        message = s;
+    }
+
+    public void setHighlightedVertex(Vertex v)
+    {
+        highlightedVertex = v;
+    }
 
     // GameController reads these 2 convert raw mouse coords 2 board coords
-    public int getBoardOffsetX() { return boardOffsetX; }
+    public int getBoardOffsetX() {
+
+        return boardOffsetX;
+    }
     public int getBoardOffsetY() { return boardOffsetY; }
 }

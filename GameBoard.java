@@ -157,7 +157,13 @@ public class GameBoard {
         return result;
     }
 
-    public ArrayList<Tile> getTiles() { return tiles; }
+    public ArrayList<Tile> getTiles()
+    {
+        return tiles;
+    }
     public ArrayList<Vertex> getVertices() { return vertices; }
-    public ArrayList<Road> getRoads() { return roads; }
+    public ArrayList<Road> getRoads() {
+
+        return roads;
+    }
 }

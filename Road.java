@@ -10,8 +10,11 @@ public class Road {
     }
 
     public Player getOwner() { return owner; }
-    public Vertex getV1() {return v1; 
-        
+    public Vertex getV1() {return v1;
+
     }
-    public Vertex getV2() { return v2; }
+    public Vertex getV2()
+    {
+        return v2;
+    }
 }
